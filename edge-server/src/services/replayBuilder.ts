@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { config } from '../config';
-import { getSegments, getLastSegmentEnd, getWindowSeconds, Segment } from '../utils/chunkStore';
+import { getSegments, getLastSegmentEnd, getSegmentsBetween } from '../utils/chunkStore';
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -16,6 +16,8 @@ export interface ReplayResult {
   outputName: string;
   chunkCount: number;
   approxDurationSeconds: number;
+  spritePath?: string;
+  spriteName?: string;
 }
 
 function runFfmpeg(args: string[]): Promise<void> {
@@ -31,15 +33,17 @@ function runFfmpeg(args: string[]): Promise<void> {
   });
 }
 
-// Espera ate a playlist ter um chunk que cubra o instante exato do clique
-// (o chunk que estava sendo escrito na hora do POST ainda nao fecha na hora).
-// Depois de PRESS_WAIT_TIMEOUT_MS, segue com o que tiver disponivel.
-async function waitForPressMoment(pressTimestamp: Date): Promise<Segment[]> {
-  const deadline = Date.now() + config.pressWaitTimeoutMs;
+// Espera a playlist ter chunks cobrindo ate targetCoverage (o instante do
+// clique + o pos-roll pedido) - essas segundos ainda nem tinham acontecido
+// no momento do clique, entao o /replay so pode responder depois deles
+// serem de fato gravados. Depois do timeout, segue com o que tiver
+// disponivel (best effort).
+async function waitForPostRoll(targetCoverage: Date) {
+  const deadline = Date.now() + config.replayPostRollSeconds * 1000 + config.postRollWaitMarginMs;
   while (Date.now() < deadline) {
     const segments = getSegments();
     const lastEnd = getLastSegmentEnd(segments);
-    if (lastEnd && lastEnd.getTime() >= pressTimestamp.getTime()) {
+    if (lastEnd && lastEnd.getTime() >= targetCoverage.getTime()) {
       return segments;
     }
     await sleep(250);
@@ -47,13 +51,18 @@ async function waitForPressMoment(pressTimestamp: Date): Promise<Segment[]> {
   return getSegments();
 }
 
-// Concatena os ultimos REPLAY_SECONDS segundos (por duracao real, nao por
-// quantidade de arquivos) num unico arquivo, sem reencodar (-c copy). Usa o
-// demuxer "concat" do ffmpeg via lista de arquivos - o jeito recomendado pra
-// juntar segmentos mpegts que compartilham codec/timebase.
+// Corta uma janela fixa em torno do instante do clique: REPLAY_PRE_ROLL_SECONDS
+// antes + REPLAY_POST_ROLL_SECONDS depois (50+10 = 60s por padrao). Concatena
+// sem reencodar (-c copy, demuxer concat) e usa -t na saida pra travar a
+// duracao total exatamente no alvo, independente de sobra nas bordas dos
+// chunks selecionados.
 export async function buildReplay(): Promise<ReplayResult> {
   const pressTimestamp = new Date();
-  const segments = await waitForPressMoment(pressTimestamp);
+  const totalSeconds = config.replayPreRollSeconds + config.replayPostRollSeconds;
+  const windowStartMs = pressTimestamp.getTime() - config.replayPreRollSeconds * 1000;
+  const targetCoverage = new Date(pressTimestamp.getTime() + config.replayPostRollSeconds * 1000);
+
+  const segments = await waitForPostRoll(targetCoverage);
 
   if (segments.length === 0) {
     const err: StreamError = new Error('Nenhum chunk disponivel ainda - stream nao esta chegando (ou acabou de reiniciar)');
@@ -65,18 +74,18 @@ export async function buildReplay(): Promise<ReplayResult> {
   const staleForMs = lastEnd ? pressTimestamp.getTime() - lastEnd.getTime() : Infinity;
   if (staleForMs > config.staleAfterSeconds * 1000) {
     const err: StreamError = new Error(
-      `stream parece parado (ultimo chunk ha ${(staleForMs / 1000).toFixed(1)}s) - ` +
+      `stream parece parado (ultimo chunk ha ${(staleForMs / 1000).toFixed(1)}s, na hora do clique) - ` +
       'recusando gerar replay com video antigo',
     );
     err.code = 'STREAM_STALE';
     throw err;
   }
 
-  const window = getWindowSeconds(config.replaySeconds, segments)
+  const window = getSegmentsBetween(windowStartMs, targetCoverage.getTime(), segments)
     .filter((s) => fs.existsSync(s.fullPath));
 
   if (window.length === 0) {
-    throw new Error('Chunks listados na playlist nao existem mais em disco (janela pequena demais?)');
+    throw new Error('Nenhum chunk cobre a janela de pre-roll/pos-roll pedida (stream comecou ha pouco?)');
   }
 
   fs.mkdirSync(config.outputDir, { recursive: true });
@@ -99,6 +108,7 @@ export async function buildReplay(): Promise<ReplayResult> {
       '-safe', '0',
       '-i', listPath,
       '-c', 'copy',
+      '-t', String(totalSeconds),
       '-movflags', '+faststart',
       outputPath,
     ]);
@@ -106,10 +116,44 @@ export async function buildReplay(): Promise<ReplayResult> {
     fs.rmSync(listPath, { force: true });
   }
 
-  return {
-    outputPath,
-    outputName,
-    chunkCount: window.length,
-    approxDurationSeconds: window.reduce((total, s) => total + s.duration, 0),
-  };
+  const approxDurationSeconds = Math.min(totalSeconds, window.reduce((total, s) => total + s.duration, 0));
+
+  // O spritesheet e um extra: se falhar, o replay (mp4) continua valendo.
+  let spritePath: string | undefined;
+  let spriteName: string | undefined;
+  if (config.spriteFrames > 0) {
+    try {
+      spriteName = `replay_${timestamp}.jpg`;
+      spritePath = path.join(config.outputDir, spriteName);
+      await buildSpritesheet(outputPath, spritePath, approxDurationSeconds);
+    } catch (err) {
+      console.error(`[replay] falha ao gerar spritesheet: ${err instanceof Error ? err.message : err}`);
+      spritePath = undefined;
+      spriteName = undefined;
+    }
+  }
+
+  return { outputPath, outputName, chunkCount: window.length, approxDurationSeconds, spritePath, spriteName };
+}
+
+// Extrai SPRITE_FRAMES frames igualmente espacados (fps = frames / duracao,
+// entao o 1o frame e o do inicio e o ultimo fica perto do fim) e junta num
+// grid unico com o filtro `tile`.
+async function buildSpritesheet(videoPath: string, spritePath: string, durationSeconds: number): Promise<void> {
+  const frames = config.spriteFrames;
+  const columns = Math.min(config.spriteColumns, frames);
+  const rows = Math.ceil(frames / columns);
+  const fps = frames / Math.max(durationSeconds, 1);
+
+  await runFfmpeg([
+    '-nostdin',
+    '-loglevel', 'warning',
+    '-y',
+    '-i', videoPath,
+    '-vf', `fps=${fps},scale=${config.spriteFrameWidth}:-2,tile=${columns}x${rows}`,
+    '-frames:v', '1',
+    '-update', '1',
+    '-q:v', '4',
+    spritePath,
+  ]);
 }

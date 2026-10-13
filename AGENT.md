@@ -1,127 +1,101 @@
-# Replay — POC de replay instantâneo para esportes amadores
+# Press2Replay — POC de replay instantâneo para esportes amadores
 
 ## Visão geral
 
-POC para uma startup: jogadores de partidas de futebol de salão, padel, etc.
-apertam um botão físico/no app e recebem a gravação do **último minuto** de
-jogo, sem precisar de operador de câmera ou edição manual.
+POC para a startup **Press2Replay** (logo em `Press2Replay.png`, apresentação em
+`Press2replay_Apresentacao.pdf`, ambos na raiz): jogadores de partidas de futebol de salão, padel, etc.
+apertam um botão e recebem a gravação do **momento do lance** (~35s por
+padrão), sem precisar de operador de câmera ou edição manual.
 
 Ideia central: uma câmera fica sempre filmando e fazendo *stream* para um
 servidor **edge** local (rodando num Raspberry Pi, na própria quadra). O edge
 mantém uma janela deslizante dos últimos segmentos de vídeo. Quando alguém
-aperta o botão de "replay", o edge junta os últimos 60 segmentos num único
-vídeo (com ffmpeg) e sobe esse arquivo para um servidor na **nuvem**, onde fica
+aperta o botão de "replay", o edge junta a janela em torno do clique (30s
+antes + 5s depois, configurável) num único vídeo (com ffmpeg) e sobe esse arquivo para um servidor na **nuvem**, onde fica
 disponível para o jogador acessar depois (link, app, etc).
 
-Este é o momento 0 do projeto: pasta vazia, nada implementado ainda. Este
-arquivo existe para fixar o contexto entre sessões e será atualizado conforme
-o projeto avança. A iteração será gradual, um componente por vez.
+Este arquivo existe para fixar o contexto entre sessões e é atualizado
+conforme o projeto avança. A iteração é gradual, um componente por vez.
 
-## Os 3 subprojetos
+## Estrutura do repositório (monorepo)
 
-O repositório vai conter três projetos distintos, provavelmente em
-subpastas próprias (`edge-server/`, `mobile-app/`, `cloud-server/` — nomes
-a confirmar quando cada um for iniciado):
+Monorepo simples, **sem npm workspaces**: cada projeto tem seu próprio
+`package.json` e `node_modules`. Isso mantém o `edge-server/` instalável e
+copiável sozinho pro Raspberry Pi. Se um dia for preciso compartilhar tipos
+entre os projetos, migra-se para workspaces.
 
-### 1. Servidor Edge (Raspberry Pi)
+```
+replay/          # pasta local do repo; o produto se chama Press2Replay
+├── edge-server/   # API Node/Express no Raspberry Pi (ingest + corte + replay)
+├── web-server/    # Next.js: hotsite + área do usuário + API (cloud)
+├── AGENT.md       # este arquivo (contexto pra sessões de IA)
+└── README.md      # visão geral e como rodar
+```
 
-Responsabilidades:
-- Receber o stream de vídeo da câmera (na POC, o stream virá do app mobile —
-  ver seção 2).
-- Gravar o stream em **chunks curtos** (a ideia inicial é ~1 segundo por
-  chunk) para disco local, mantendo uma janela circular (ex.: os últimos N
-  minutos) e descartando os chunks mais antigos.
-- Expor um endpoint HTTP (POST) tipo `/replay` que, ao ser chamado:
-  - Pega os **últimos 60 chunks** gravados (≈ últimos 60 segundos, dado 1
-    chunk/segundo).
-  - Usa **ffmpeg** para concatenar esses chunks em um único arquivo de
-    vídeo.
-  - Salva esse vídeo final localmente.
-  - Faz upload desse vídeo para o servidor na nuvem.
-- Roda num Raspberry Pi na POC — então tem restrição de CPU/IO, e a escolha
-  de codec/formato de chunk precisa considerar isso (idealmente evitar
-  reencode pesado no corte, usar `-c copy` no concat sempre que possível).
+## Os subprojetos
 
-Pontos em aberto a decidir quando começarmos a implementar:
-- Protocolo de ingestão do stream (RTMP, RTSP, WebRTC, HLS push, etc.) — impacta
-  diretamente como o ffmpeg vai segmentar (`-f segment`) e como o app mobile
-  vai enviar o vídeo.
-- Formato de chunk (ex. `.ts` via segmentação MPEG-TS costuma ser o mais
-  fácil de concatenar sem reencode).
-- Onde fica o limite dos "últimos 60 chunks" — nome de arquivo com
-  timestamp/índice sequencial, e uma rotina de limpeza dos chunks antigos.
-- Autenticação/segurança do endpoint de replay e do upload pra nuvem (na POC
-  pode ser simples, mas vale já não deixar aberto).
-
-### 2. App Mobile
-
-Nota importante: nesta fase da POC o celular é apenas um **substituto
-temporário** de uma câmera dedicada — uma câmera de verdade (IP, USB, etc.)
-será adquirida em breve. O app mobile, portanto, tem só o papel de captar e
-fazer stream de vídeo (fazendo as vezes da câmera) e de disparar o replay.
-Ele **não** é o lugar onde o jogador assiste ao vídeo depois — isso é
-responsabilidade do servidor cloud (ver seção 3). Quando a câmera real
-chegar, o papel de "streaming de vídeo" do app deixa de ser necessário,
-ficando só o botão de replay (ou nem isso, se o botão físico ficar
-acoplado à própria câmera/quadra).
+### 1. Edge server (`edge-server/`, Raspberry Pi)
 
 Responsabilidades:
-- Usar a câmera do celular para capturar vídeo continuamente e fazer stream
-  para o servidor edge (celular atua como a "câmera" da POC, no lugar de uma
-  câmera IP dedicada que será adquirida futuramente).
-- Ter um botão de **"Replay"** na interface: ao ser apertado, dispara o POST
-  para o endpoint do servidor edge que aciona o corte dos últimos 60s.
-- Feedback visual simples de que o replay foi solicitado/está processando.
+- Receber o stream de vídeo da câmera. Na POC a fonte é um celular dando push
+  via RTMP (app de teste, **fora deste repo**); a câmera real (RTSP) deve
+  passar a ser usada nos próximos dias — só muda `INGEST_MODE`/`INPUT_URL`.
+- Gravar o stream em **chunks curtos** (~1 segundo) em disco, mantendo uma
+  janela circular e descartando os mais antigos.
+- Expor `POST /replay`, que:
+  - corta uma janela fixa em torno do clique (30s antes + 5s depois, por
+    padrão) concatenando os chunks com **ffmpeg** (`-c copy`, sem reencode);
+  - salva o vídeo final localmente (`replay_<timestamp>.mp4`);
+  - gera um **spritesheet** (`replay_<timestamp>.jpg`) com frames
+    igualmente espaçados do início ao fim do vídeo;
+  - faz upload pro cloud (hoje um stub).
+- Rodar num Raspberry Pi 4 Model B — restrição de CPU/IO, por isso nada de
+  reencode pesado no corte.
+
+### 2. Web server (`web-server/`, cloud)
+
+Projeto em **Next.js** (App Router, TypeScript, `src/`, sem Tailwind), criado
+via `create-next-app` e ainda no template inicial. Vai ser ao mesmo tempo:
+- **hotsite** do produto;
+- **área dos usuários**, onde entram e baixam os próprios vídeos;
+- **API** que recebe o upload dos replays vindos do edge (é o destino do
+  `CLOUD_UPLOAD_URL`) e serve os vídeos.
 
 Pontos em aberto:
-- Framework (React Native, Flutter, nativo) — a definir quando chegarmos
-  nessa etapa.
-- Como o celular está na mesma rede local do Raspberry Pi (Wi-Fi da quadra) —
-  a POC assume ambos na mesma LAN.
-
-### 3. Servidor Cloud
-
-Responsabilidades:
-- Receber o upload do vídeo de replay enviado pelo servidor edge.
-- Armazenar o vídeo (storage — a definir: S3-like, disco simples, etc. já
-  que é POC).
-- Disponibilizar de alguma forma o vídeo para o jogador (link direto,
-  listagem simples, ou futuramente integração com o app).
-
-Pontos em aberto:
-- Ainda o mais indefinido dos três — será detalhado quando chegarmos nele.
-- Provavelmente começa como algo bem simples (upload + storage + listagem),
-  sem autenticação de usuário final na POC.
+- Storage dos vídeos (S3-like, disco, etc.).
+- Autenticação de usuário e como um replay é associado a um usuário/quadra.
+- Autenticação do upload vindo do edge.
+- O Next desta versão tem mudanças em relação ao que costuma estar nos
+  modelos — `web-server/AGENTS.md` manda ler `node_modules/next/dist/docs/`
+  antes de escrever código; seguir isso.
 
 ## Fluxo de dados (end-to-end)
 
 ```
-[Celular/câmera] --stream continuo--> [Edge - Raspberry Pi]
-                                            |
-                                  grava em chunks de ~1s
-                                  (janela circular, descarta os antigos)
-                                            |
-      [App] --POST /replay--------------> [Edge]
-                                            |
-                                  ffmpeg concatena últimos 60 chunks
-                                            |
-                                  salva vídeo final localmente
-                                            |
-                                  upload -------------> [Cloud server]
-                                                              |
-                                                      armazena e disponibiliza
+[Câmera] --stream contínuo--> [Edge - Raspberry Pi]
+                                      |
+                            grava em chunks de ~1s
+                            (janela circular, descarta os antigos)
+                                      |
+ [botão/cliente] --POST /replay-----> [Edge]
+                                      |
+                            ffmpeg concatena a janela pré+pós-roll
+                            gera mp4 + spritesheet
+                                      |
+                            upload ----------> [web-server (Next.js)]
+                                                      |
+                                              armazena e disponibiliza
+                                              pro usuário baixar
 ```
 
-## Ordem de implementação sugerida
+## Ordem de implementação
 
-Como o próprio usuário colocou, a iteração será gradual. Ordem natural,
-dado que cada peça depende de poder testar a anterior:
-1. **Edge server**: lógica de segmentação + corte com ffmpeg + endpoint de
-   replay, testável no início até com um stream de teste (ex. `ffmpeg` lendo
-   de um arquivo ou webcam do notebook) antes mesmo do app mobile existir.
-2. **App mobile**: stream da câmera do celular pro edge + botão de replay.
-3. **Cloud server**: recepção do upload + storage + disponibilização do
-   vídeo.
+1. **Edge server** — feito (ver abaixo).
+2. **Preparar o Raspberry Pi 4** — SD de 32GB, Raspberry Pi OS Lite 64-bit,
+   Node + ffmpeg, edge-server como serviço systemd, IP fixo (reserva DHCP no
+   roteador pelo MAC), `CHUNKS_DIR` em tmpfs.
+3. **Web server** — receber upload, storage, listagem/download, hotsite.
+4. Trocar a fonte de teste (celular) pela câmera real RTSP.
 
 ## Estado atual
 
@@ -136,11 +110,25 @@ dado que cada peça depende de poder testar a anterior:
   - Segmentação via muxer HLS do ffmpeg (não o `segment` cru — a playlist
     HLS dá duração real e timestamp de cada chunk, necessário pra cortar por
     tempo de forma confiável).
-  - `POST /replay` corta os últimos ~60s por tempo real (não por contagem de
-    arquivos), espera cobrir o instante exato do clique, e recusa (503) se o
+  - `POST /replay` corta uma janela **fixa** em torno do clique — 30s antes
+    + 5s depois por padrão (`REPLAY_PRE_ROLL_SECONDS`/
+    `REPLAY_POST_ROLL_SECONDS`), total travado exatamente nessa soma (`-t`
+    no ffmpeg) — não é "os últimos N segundos até agora". Como o pós-roll
+    ainda nem aconteceu no instante do clique, o endpoint demora de
+    propósito pelo menos o tempo do pós-roll pra responder (validado com
+    50s/10s: request de ~8.5s, arquivo final com 60.03s, vídeo+áudio ok —
+    mesma lógica vale pros valores atuais de 30s/5s). Recusa (503) se o
     stream estiver parado/travado.
+  - Spritesheet: `SPRITE_FRAMES` (12), `SPRITE_COLUMNS` (4),
+    `SPRITE_FRAME_WIDTH` (320); `0` em `SPRITE_FRAMES` desliga. Falha ao
+    gerar não derruba o replay. A resposta do `/replay` traz o campo
+    `sprite`. O uploader só envia o mp4, então o `.jpg` nunca é apagado no
+    upload: a retenção (`OUTPUT_RETENTION_COUNT`) agora roda em todo
+    `/replay` e limita `.mp4` e `.jpg` separadamente.
+  - `GET /health` (liveness) e `GET /status` (ingest, chunks, `live`) já
+    existem em `src/routes/status.ts`.
   - Upload pro cloud é um stub (`src/services/uploader.ts`) — aguardando o
-    subprojeto 3 existir. Upload confirmado apaga o `.mp4` local na hora;
+    web-server aceitar o upload. Upload confirmado apaga o `.mp4` local na hora;
     falha de upload mantém o arquivo com um teto de retenção
     (`OUTPUT_RETENTION_COUNT`) pra não crescer sem limite.
   - Janela de retenção dos chunks (`CHUNK_WINDOW_SECONDS`) reduzida pra 90s
@@ -151,7 +139,9 @@ dado que cada peça depende de poder testar a anterior:
     desgaste de escrita em SD/SSD — nesse cenário o SSD passa a ser
     dispensável no hardware, e RAM vira o recurso a dimensionar
     (~90MB pra 1080p, ~280MB pra 4K com janela de 90s).
-- **App mobile**: não iniciado.
-- **Servidor cloud**: não iniciado.
-- Este documento é o ponto de partida; deve ser atualizado conforme decisões
-  técnicas forem tomadas e cada subprojeto for iniciado.
+- **Web server** (`web-server/`): criado com `create-next-app` (Next 16.4,
+  React 19.3, TS, App Router). `npm run build` e `tsc` passam; nenhuma tela ou
+  rota própria ainda.
+- **Raspberry Pi 4 Model B**: ainda a preparar (gravar SD de 32GB, instalar
+  Node/ffmpeg, serviço, IP fixo).
+- Este documento deve ser atualizado conforme decisões técnicas forem tomadas.

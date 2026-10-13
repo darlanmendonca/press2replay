@@ -13,17 +13,20 @@ export function enforceOutputRetention(): void {
     return;
   }
 
-  const mp4s = files
-    .filter((name) => name.endsWith('.mp4'))
-    .map((name) => {
-      const fullPath = path.join(config.outputDir, name);
-      return { fullPath, mtimeMs: fs.statSync(fullPath).mtimeMs };
-    })
-    .sort((a, b) => b.mtimeMs - a.mtimeMs); // mais novo primeiro
+  // .mp4 (replay) e .jpg (spritesheet) tem tetos independentes: o sprite nao
+  // e apagado no upload OK (o uploader ainda so envia o mp4).
+  for (const ext of ['.mp4', '.jpg']) {
+    const sorted = files
+      .filter((name) => name.endsWith(ext))
+      .map((name) => {
+        const fullPath = path.join(config.outputDir, name);
+        return { fullPath, mtimeMs: fs.statSync(fullPath).mtimeMs };
+      })
+      .sort((a, b) => b.mtimeMs - a.mtimeMs); // mais novo primeiro
 
-  const overflow = mp4s.slice(config.outputRetentionCount);
-  for (const file of overflow) {
-    fs.rmSync(file.fullPath, { force: true });
-    console.warn(`[output] descartando replay antigo (upload nunca confirmado): ${path.basename(file.fullPath)}`);
+    for (const file of sorted.slice(config.outputRetentionCount)) {
+      fs.rmSync(file.fullPath, { force: true });
+      console.warn(`[output] descartando arquivo antigo: ${path.basename(file.fullPath)}`);
+    }
   }
 }

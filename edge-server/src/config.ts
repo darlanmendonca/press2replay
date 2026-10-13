@@ -30,22 +30,34 @@ export const config = {
   // secao de desgaste de SD/SSD).
   chunkWindowSeconds: int(process.env.CHUNK_WINDOW_SECONDS, 90),
 
-  // Quantos segundos de video o /replay corta (selecionado por duracao real
-  // dos chunks na playlist, nao por quantidade de arquivos).
-  replaySeconds: int(process.env.REPLAY_SECONDS, 60),
+  // O /replay corta uma janela fixa em torno do instante do clique: X
+  // segundos de "antes" + Y segundos de "depois". Total = 60s por padrao
+  // (50+10). Selecionado por duracao real dos chunks na playlist, nao por
+  // quantidade de arquivos.
+  replayPreRollSeconds: int(process.env.REPLAY_PRE_ROLL_SECONDS, 30),
+  replayPostRollSeconds: int(process.env.REPLAY_POST_ROLL_SECONDS, 5),
 
-  // Se o ultimo chunk da playlist for mais antigo que isto, consideramos o
-  // stream parado e recusamos o replay em vez de devolver video velho.
+  // Se o ultimo chunk da playlist for mais antigo que isto (em relacao ao
+  // instante do clique), consideramos o stream parado e recusamos o
+  // replay em vez de devolver video velho.
   staleAfterSeconds: int(process.env.STALE_AFTER_SECONDS, 5),
 
-  // Quanto tempo o /replay espera um chunk que cubra o instante exato do
-  // clique antes de seguir com o que tiver disponivel.
-  pressWaitTimeoutMs: int(process.env.PRESS_WAIT_TIMEOUT_MS, 3000),
+  // Quanto tempo (alem do REPLAY_POST_ROLL_SECONDS) o /replay espera os
+  // chunks do pos-roll serem gravados antes de desistir e responder com o
+  // que tiver disponivel (ou erro, se nem o clique em si foi coberto).
+  postRollWaitMarginMs: int(process.env.POST_ROLL_WAIT_MARGIN_MS, 5000),
 
   // Se nenhum chunk novo aparecer nesse intervalo, o segmenter mata e
   // reinicia o ffmpeg (cobre o caso de uma leitura RTSP travada, que nao
   // gera um "exit" sozinha).
   stallTimeoutMs: int(process.env.STALL_TIMEOUT_MS, 8000),
+
+  // Spritesheet do replay: SPRITE_FRAMES frames igualmente espacados entre o
+  // inicio e o fim do video, num grid de SPRITE_COLUMNS colunas, cada frame
+  // com SPRITE_FRAME_WIDTH px de largura (altura proporcional). 0 desliga.
+  spriteFrames: int(process.env.SPRITE_FRAMES, 12),
+  spriteColumns: int(process.env.SPRITE_COLUMNS, 4),
+  spriteFrameWidth: int(process.env.SPRITE_FRAME_WIDTH, 320),
 
   chunksDir,
   outputDir,

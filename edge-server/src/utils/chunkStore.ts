@@ -66,16 +66,19 @@ export function getLastSegmentEnd(segments: Segment[] = getSegments()): Date | n
   return new Date(last.programDateTime.getTime() + last.duration * 1000);
 }
 
-// Ultimos N segundos de video, andando de tras pra frente e somando a
-// duracao real de cada segmento ate atingir (ou passar) o alvo.
-export function getWindowSeconds(seconds: number, segments: Segment[] = getSegments()): Segment[] {
-  const result: Segment[] = [];
-  let total = 0;
-  for (let i = segments.length - 1; i >= 0 && total < seconds; i--) {
-    const segment = segments[i];
-    if (!segment) continue;
-    result.unshift(segment);
-    total += segment.duration;
-  }
-  return result;
+// Segmentos cujo intervalo [inicio, fim) se sobrepoe a janela de tempo
+// [startMs, endMs) pedida (ambos epoch ms). Usado pro corte por pre-roll +
+// pos-roll em torno do instante do clique - ve-se o horario de parede real
+// de cada chunk (#EXT-X-PROGRAM-DATE-TIME), nao quantidade de arquivos.
+export function getSegmentsBetween(
+  startMs: number,
+  endMs: number,
+  segments: Segment[] = getSegments(),
+): Segment[] {
+  return segments.filter((segment) => {
+    if (!segment.programDateTime) return false;
+    const segStart = segment.programDateTime.getTime();
+    const segEnd = segStart + segment.duration * 1000;
+    return segEnd > startMs && segStart < endMs;
+  });
 }

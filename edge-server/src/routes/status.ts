@@ -27,7 +27,8 @@ export function buildStatusRouter(segmenter: Segmenter): express.Router {
         inputUrl: config.inputUrl,
         chunkDurationSeconds: config.chunkDurationSeconds,
         chunkWindowSeconds: config.chunkWindowSeconds,
-        replaySeconds: config.replaySeconds,
+        replayPreRollSeconds: config.replayPreRollSeconds,
+        replayPostRollSeconds: config.replayPostRollSeconds,
         staleAfterSeconds: config.staleAfterSeconds,
       },
     });

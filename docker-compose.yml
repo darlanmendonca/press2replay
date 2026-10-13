@@ -1,0 +1,40 @@
+# Somente DEV: sobe edge-server e web-server com hot reload.
+#   docker compose up --build
+# Em prod o web-server vai pra Vercel e o edge roda direto no Raspberry Pi.
+name: press2replay
+
+services:
+  edge-server:
+    build:
+      context: ./edge-server
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"   # API HTTP (/health, /status, /replay)
+      - "1935:1935"   # RTMP (INGEST_MODE=rtmp)
+    env_file:
+      - path: ./edge-server/.env
+        required: false
+    volumes:
+      - ./edge-server:/app
+      - edge-node-modules:/app/node_modules   # nao deixa o bind mount sobrescrever as deps do container
+
+  web-server:
+    build:
+      context: ./web-server
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3001:3000"   # 3000 do host ja e do edge-server
+    env_file:
+      - path: ./web-server/.env
+        required: false
+    environment:
+      WATCHPACK_POLLING: "true"   # file watching confiavel em bind mount no Mac
+    volumes:
+      - ./web-server:/app
+      - web-node-modules:/app/node_modules
+      - web-next-cache:/app/.next
+
+volumes:
+  edge-node-modules:
+  web-node-modules:
+  web-next-cache:

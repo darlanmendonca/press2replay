@@ -4,3 +4,5 @@ dist/
 chunks/*.ts
 output/*.mp4
 *.log
+chunks/*.m3u8
+output/*.jpg

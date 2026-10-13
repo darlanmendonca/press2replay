@@ -15,17 +15,17 @@ replayRouter.post('/replay', async (_req: Request, res: Response) => {
       // Upload confirmado: o .mp4 local nao serve mais pra nada, e e
       // exatamente esse arquivo que, sem isso, cresce sem limite em disco.
       fs.rmSync(replay.outputPath, { force: true });
-    } else {
-      // Upload falhou (ou o cloud nem existe ainda) - mantem pra retry
-      // manual, mas com um teto pra nao acumular sem limite.
-      enforceOutputRetention();
     }
+    // Falha de upload mantem o mp4 pra retry manual, e o spritesheet fica
+    // sempre; o teto evita acumular sem limite.
+    enforceOutputRetention();
 
     res.json({
       ok: true,
       file: replay.outputName,
       chunkCount: replay.chunkCount,
       approxDurationSeconds: replay.approxDurationSeconds,
+      sprite: replay.spriteName ?? null,
       ...upload,
     });
   } catch (err) {

@@ -1,8 +1,9 @@
-# Edge server
+# Edge server — Press2Replay
 
 API em Node.js que roda no Raspberry Pi (ou, por enquanto, na sua máquina
 para dev), ingere o vídeo, mantém uma janela circular de chunks em disco e,
-quando chamada, corta os últimos ~60s e gera o arquivo de replay.
+quando chamada, corta uma janela de tempo em torno do instante do clique
+(30s antes + 5s depois, por padrão) e gera o arquivo de replay.
 
 ## Por que RTSP (e não WebRTC)
 
@@ -50,25 +51,34 @@ corte é mais que suficiente pra um replay esportivo.
    só acontece quando o processo reinicia, e não tem faxina manual por cima
    disso (uma segunda rotina de limpeza por idade só correria contra o
    próprio ffmpeg, sem ganho nenhum). O que faz sentido ajustar é o *valor*
-   de `CHUNK_WINDOW_SECONDS`: só precisa de folga sobre `REPLAY_SECONDS`
-   (com `-c copy` o concat leva bem menos de 1s), então 90s já é confortável
-   para um corte de 60s — não precisa ser um valor grande "por segurança".
+   de `CHUNK_WINDOW_SECONDS`: só precisa de folga sobre
+   `REPLAY_PRE_ROLL_SECONDS` (com `-c copy` o concat leva bem menos de 1s),
+   então 90s já é confortável para um pre-roll de 30s — não precisa ser um
+   valor grande "por segurança".
 4. A cada (re)início do `ffmpeg` (queda de stream, restart do processo), a
    pasta de chunks é limpa: cada sessão de stream começa "do zero", pra
    nunca costurar vídeo de antes e depois de uma queda.
 5. Um watchdog verifica a cada poucos segundos se a playlist está recebendo
    chunks novos; se travar (ex: leitura RTSP pendurada, que não gera erro
    nem "exit" sozinha) o ffmpeg é morto e reiniciado.
-6. `POST /replay`:
-   - Espera (até `PRESS_WAIT_TIMEOUT_MS`) um chunk que cubra o instante
-     exato do clique — o chunk sendo escrito na hora do POST ainda não
-     fechou.
-   - Se o último chunk da playlist estiver mais velho que
-     `STALE_AFTER_SECONDS`, recusa com `503` em vez de devolver vídeo
+6. `POST /replay` corta uma janela **fixa** em torno do instante do clique:
+   `REPLAY_PRE_ROLL_SECONDS` antes + `REPLAY_POST_ROLL_SECONDS` depois
+   (30+5=35s por padrão) — não é "os últimos N segundos até agora", é uma janela
+   ancorada no clique, com pedaço de antes e de depois do lance.
+   - O pós-roll ainda nem aconteceu no instante do clique, então o endpoint
+     **espera de verdade** (até `REPLAY_POST_ROLL_SECONDS` +
+     `POST_ROLL_WAIT_MARGIN_MS` de folga) até os chunks desses segundos
+     serem gravados antes de responder — o `/replay` fica “pendurado” por
+     alguns segundos de propósito, isso é esperado, não é lentidão.
+   - Se o último chunk da playlist (na hora do clique) estiver mais velho
+     que `STALE_AFTER_SECONDS`, recusa com `503` em vez de devolver vídeo
      antigo (stream caiu).
-   - Junta os últimos `REPLAY_SECONDS` segundos (por duração real, não por
-     quantidade de arquivos) com `ffmpeg -f concat -c copy -movflags
-     +faststart` num `.mp4` em `OUTPUT_DIR`.
+   - Junta os chunks que caem dentro dessa janela (por horário real de
+     parede de cada um, não por quantidade de arquivos) com
+     `ffmpeg -f concat -c copy -t <pre+post> -movflags +faststart` num
+     `.mp4` em `OUTPUT_DIR` — o `-t` na saída trava a duração total
+     exatamente no alvo (`REPLAY_PRE_ROLL_SECONDS + REPLAY_POST_ROLL_SECONDS`),
+     independente de sobra nas bordas dos chunks selecionados.
    - Tenta subir pro servidor cloud (ainda não existe — fica como stub em
      `src/services/uploader.ts`, controlado por `CLOUD_UPLOAD_URL`).
    - Se o upload for confirmado, o `.mp4` local é apagado na hora — é
@@ -110,9 +120,11 @@ npm run typecheck
   restarts? qual `INPUT_URL`?), quantos chunks existem na playlist agora, e
   se o stream está "ao vivo" (`live: true/false`, com base em
   `STALE_AFTER_SECONDS`).
-- `POST /replay` — gera o corte dos últimos `REPLAY_SECONDS` (~60s) e
-  retorna o nome do arquivo gerado (e se o upload pro cloud rolou ou não).
-  Responde `503` se o stream estiver parado.
+- `POST /replay` — gera o corte de `REPLAY_PRE_ROLL_SECONDS` antes +
+  `REPLAY_POST_ROLL_SECONDS` depois do clique (35s por padrão) e retorna o
+  nome do arquivo gerado (e se o upload pro cloud rolou ou não). Demora
+  pelo menos `REPLAY_POST_ROLL_SECONDS` pra responder, de propósito (ver
+  seção "Como funciona"). Responde `503` se o stream estiver parado.
 
 ## Testando sem celular nem câmera
 
@@ -121,18 +133,27 @@ ainda, dá pra simular uma câmera fazendo o ffmpeg da sua máquina publicar
 um vídeo (ou a webcam) via RTMP pro edge — **lembrando de forçar o GOP de
 1s** (`-g`/`-keyint_min`/`-sc_threshold 0`), senão os chunks saem bem mais
 longos que o esperado (foi o que aconteceu no primeiro teste aqui, sem
-esses parâmetros o keyframe só vinha a cada ~8s):
+esses parâmetros o keyframe só vinha a cada ~8s), **e de sempre incluir
+áudio no teste**, mesmo sintético — todo teste feito aqui inicialmente era
+só vídeo, e isso escondeu um bug real (ver nota de E-RTMP logo abaixo) que
+só aparece com áudio+vídeo juntos:
 
 ```bash
+# gerando video+audio sinteticos (nao depende de arquivo nem webcam)
+ffmpeg -re -f lavfi -i "testsrc=size=1280x720:rate=30" -f lavfi -i "sine=frequency=1000" \
+  -c:v libx264 -preset ultrafast -pix_fmt yuv420p -g 30 -keyint_min 30 -sc_threshold 0 \
+  -c:a aac -f flv rtmp://127.0.0.1:1935/live/stream
+
 # usando um arquivo de vídeo em loop como se fosse a câmera
 ffmpeg -re -stream_loop -1 -i algum_video.mp4 \
   -c:v libx264 -g 30 -keyint_min 30 -sc_threshold 0 \
   -c:a aac -f flv rtmp://127.0.0.1:1935/live/stream
 
 # ou usando a webcam do notebook (Mac), a 30fps
-ffmpeg -f avfoundation -framerate 30 -i "0" \
+ffmpeg -f avfoundation -framerate 30 -i "0:0" \
   -c:v libx264 -preset ultrafast -pix_fmt yuv420p \
   -g 30 -keyint_min 30 -sc_threshold 0 \
+  -c:a aac \
   -f flv rtmp://127.0.0.1:1935/live/stream
 ```
 
@@ -140,6 +161,52 @@ Com isso publicando, `GET /status` já deve mostrar chunks aparecendo (~1s
 cada) e `live: true`, e `POST /replay` deve gerar um `.mp4` em `output/`.
 Vale também testar: matar o publisher e chamar `/replay` de novo — deve
 responder `503` em vez de devolver o vídeo antigo.
+
+## "Só chega áudio, sem vídeo" — troubleshooting
+
+Sintoma: RTMP conecta e publica normalmente (aparece nos logs do
+`node-media-server`), mas o `.mp4` final só tem 1 stream (áudio) — `ffprobe`
+não mostra vídeo nenhum. Várias hipóteses já foram investigadas aqui; as
+duas primeiras foram **descartadas** (ficam registradas pra não serem
+re-testadas à toa), a terceira é a que está sendo validada agora.
+
+1. **Enhanced RTMP** (descartado) — suspeita inicial de que o
+   `node-media-server` (RTMP "clássico") não entendia a extensão
+   [Enhanced RTMP](https://github.com/veovera/enhanced-rtmp) que o
+   HaishinKit anuncia por padrão. Descartado capturando o RTMP bruto direto
+   com `ffmpeg -listen 1 -i rtmp://0.0.0.0:1935/live/stream` (sem nenhum
+   servidor no meio) — o vídeo já não chegava nem aí. Mantido desligado no
+   código mesmo assim (não faz mal, e o `node-media-server` de fato não
+   suporta E-RTMP): `RTMPConnection(fourCcList: nil, videoFourCcInfoMap: nil,
+   audioFourCcInfoMap: nil, capsEx: 0)`.
+2. **Reconectar a mesma instância de RTMPStream/RTMPConnection**
+   (descartado) — existe um bug real e conhecido no HaishinKit 2.2.5 nesse
+   cenário ([PR #1944](https://github.com/HaishinKit/HaishinKit.swift/pull/1944),
+   ainda sem fix mergeado), e o `StreamController` recria
+   `MediaMixer`/`RTMPConnection`/`RTMPStream` do zero a cada `start()` por
+   causa disso (mudança mantida, é uma correção legítima de qualquer forma).
+   Mas isso **não era a causa do problema aqui** — o sintoma persistiu mesmo
+   com instâncias novas a cada tentativa.
+3. **Perfil H.264 incompatível com 1080p** (suspeita atual, validação em
+   andamento) — o app configura `videoSize: 1920x1080` mas usava o
+   `profileLevel` default da lib (`Baseline_3_1`), que pelo spec H.264 tem
+   teto de 3600 macroblocks (equivalente a 1280x720). 1080p são 8160
+   macroblocks, bem acima do teto — nesse cenário o VideoToolbox pode
+   rejeitar/descartar os frames silenciosamente (sem erro visível pro app),
+   e como o áudio não passa por essa restrição, só ele sai pelo RTMP.
+   Correção aplicada: `profileLevel: kVTProfileLevel_H264_High_AutoLevel`
+   explícito no `VideoCodecSettings`. **Ainda não confirmado em device
+   real** — atualizar esta seção assim que for validado (ou descartado).
+
+Se esse sintoma voltar a aparecer com outro publisher/servidor no futuro, o
+jeito mais rápido de isolar de novo é o mesmo usado aqui: capturar o RTMP
+bruto com `ffmpeg -listen` direto na porta, sem nenhum servidor no meio —
+se o vídeo já não estiver lá, o problema é no publisher, não no relay.
+
+Isso também é um lembrete pra quando a câmera IP real entrar: o caminho
+RTSP não passa pelo `node-media-server` (o ffmpeg lê a câmera direto), mas
+se algum dia trocarmos de servidor de ingest RTMP, vale confirmar que ele
+suporta o que o publisher realmente manda.
 
 ## Checklist pra compra da câmera (verificar na ficha técnica, não de memória)
 

@@ -1,0 +1,28 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Dependencias e build
+node_modules/
+dist/
+
+# Ambiente / segredos
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editores
+.idea/
+.vscode/
+*.swp
+
+# Xcode (camera-app)
+xcuserdata/
+DerivedData/
+*.xcuserstate

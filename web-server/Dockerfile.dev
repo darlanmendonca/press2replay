@@ -1,0 +1,9 @@
+# Somente DEV (em prod o web-server sobe na Vercel). O codigo vem por bind
+# mount (ver docker-compose.yml) e o `next dev` faz o hot reload.
+FROM node:24-bookworm-slim
+
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+
+CMD ["npm", "run", "dev", "--", "--hostname", "0.0.0.0"]

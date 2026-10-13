@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "Edge server (Raspberry Pi) - ingests camera stream, keeps a rolling window of chunks, cuts and uploads replays",
   "private": true,
+  "engines": {
+    "node": ">=25"
+  },
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
