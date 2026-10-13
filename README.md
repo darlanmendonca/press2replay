@@ -8,7 +8,7 @@ Replay instantâneo para esportes amadores (futsal, padel etc.): uma câmera
 filma a quadra o tempo todo, e quando alguém aperta o botão de replay o
 sistema entrega o vídeo do lance, sem operador de câmera nem edição.
 
-Apresentação do projeto: [`Press2replay_Apresentacao.pdf`](Press2replay_Apresentacao.pdf).
+Apresentação do projeto: [`Presentation.pdf`](Presentation.pdf).
 
 > Estado: POC em andamento. O `edge-server` está implementado; o `web-server`
 > acabou de ser criado (ainda no template do Next.js).
@@ -62,10 +62,22 @@ docker compose up --build
 | `web-server` | http://localhost:3001 |
 
 O código vem por bind mount, então há hot reload nos dois. Um `.env` em cada
-pasta é opcional e, se existir, é carregado. Se mudar o `package.json`, suba
-com `docker compose up --build -V` para renovar o `node_modules` do container.
+pasta é opcional e, se existir, é carregado. Ao subir, cada container roda `npm install`, então mudanças
+no `package.json` entram sozinhas (basta reiniciar com `docker compose restart`).
+Para zerar tudo, incluindo os volumes de cache: `docker compose down -v`.
 Sem publisher RTMP, o edge fica reiniciando o ffmpeg e logando "nenhum chunk
 novo": é o comportamento esperado até algo começar a transmitir.
+
+### Login do web-server (dev)
+
+Não existe cadastro público: funcionários são criados por um admin. Para
+conseguir o primeiro acesso, crie um admin pelo script (com o compose de pé):
+
+```bash
+docker compose exec -e ADMIN_EMAIL=voce@exemplo.com -e ADMIN_PASSWORD='uma-senha-forte' web-server npm run db:create-admin
+```
+
+Depois entre em http://localhost:3001/login (painel em `/admin`).
 
 ## Rodando o edge-server
 

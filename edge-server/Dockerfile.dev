@@ -10,4 +10,6 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-CMD ["npm", "run", "dev"]
+# `npm install` no start: o node_modules fica num volume nomeado, que nao
+# acompanha mudancas de package.json sozinho.
+CMD ["sh", "-c", "npm install && npm run dev"]

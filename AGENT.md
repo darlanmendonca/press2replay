@@ -3,7 +3,7 @@
 ## Visão geral
 
 POC para a startup **Press2Replay** (logo em `Press2Replay.png`, apresentação em
-`Press2replay_Apresentacao.pdf`, ambos na raiz): jogadores de partidas de futebol de salão, padel, etc.
+`Presentation.pdf`, ambos na raiz): jogadores de partidas de futebol de salão, padel, etc.
 apertam um botão e recebem a gravação do **momento do lance** (~35s por
 padrão), sem precisar de operador de câmera ou edição manual.
 
@@ -139,9 +139,29 @@ Pontos em aberto:
     desgaste de escrita em SD/SSD — nesse cenário o SSD passa a ser
     dispensável no hardware, e RAM vira o recurso a dimensionar
     (~90MB pra 1080p, ~280MB pra 4K com janela de 90s).
-- **Web server** (`web-server/`): criado com `create-next-app` (Next 16.4,
-  React 19.3, TS, App Router). `npm run build` e `tsc` passam; nenhuma tela ou
-  rota própria ainda.
+- **Web server** (`web-server/`): Next 16.4, React 19.3, TS, App Router,
+  Tailwind v4 (tema Press2Replay em `globals.css`, extraído do
+  `Presentation.pdf`). Deploy na Vercel (Hobby, Root Directory `web-server`).
+  - **Banco**: Postgres + Drizzle (driver `postgres`). Local: serviço
+    `postgres` no `docker-compose.yml`; prod: Neon pelo Marketplace da Vercel
+    (injeta `DATABASE_URL` com pooling e `DATABASE_URL_UNPOOLED`, usada nas
+    migrations). Migrations em `web-server/drizzle/`; `npm run db:migrate`
+    roda no start do container e no `vercel-build` (pula com aviso se não
+    houver `DATABASE_URL`). A conexão (`src/db/index.ts`) é preguiçosa pra o
+    `next build` não exigir banco.
+  - **Tabela `venue_staff`** = funcionários da quadra e também a tabela de
+    usuários do Better Auth (`firstName` é o `name` dele; `lastName`,
+    `phoneNumber`, `isAdmin` são campos extras; `isAdmin` não vem do input).
+  - **Auth**: Better Auth, e-mail + senha, **sem cadastro público**
+    (`disableSignUp`). Primeiro admin: `npm run db:create-admin`. Rotas:
+    `/login`, `/admin` (protegida), `/api/auth/*`. `proxy.ts` só faz redirect
+    otimista pelo cookie; a validação real é `src/lib/session.ts`
+    (`requireStaff`/`requireAdmin`), dentro de `<Suspense>` por causa do Cache
+    Components. **Cada página/consulta deve checar a sessão por conta própria**
+    — o conteúdo estático de uma página vai no payload mesmo sem sessão.
+  - Falta: criar funcionários (admin), salas, upload/listagem de vídeos,
+    storage (Vercel Blob atrás de uma camada fina; guardar só a chave no banco),
+    página pública do jogador, hotsite.
 - **Raspberry Pi 4 Model B**: ainda a preparar (gravar SD de 32GB, instalar
   Node/ffmpeg, serviço, IP fixo).
 - Este documento deve ser atualizado conforme decisões técnicas forem tomadas.
