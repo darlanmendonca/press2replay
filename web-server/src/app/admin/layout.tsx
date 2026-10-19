@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Suspense } from "react";
 import { requireStaff } from "@/lib/session";
 import { SignOutButton } from "./sign-out-button";
@@ -18,9 +19,16 @@ async function AdminShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="mx-auto min-h-screen max-w-5xl px-6">
       <header className="flex items-center justify-between border-b border-border py-4">
-        <span className="font-extrabold">
-          press2<span className="text-brand">replay</span>
-        </span>
+        <div className="flex items-center gap-6">
+          <Link href="/admin" className="font-extrabold">
+            press2<span className="text-brand">replay</span>
+          </Link>
+          {user.isAdmin && (
+            <Link href="/admin/places" className="text-sm text-muted transition-colors hover:text-brand">
+              Places
+            </Link>
+          )}
+        </div>
         <div className="flex items-center gap-4 text-sm">
           <span
             title={`${fullName}${user.isAdmin ? " · admin" : ""}`}

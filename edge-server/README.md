@@ -3,7 +3,7 @@
 API em Node.js que roda no Raspberry Pi (ou, por enquanto, na sua máquina
 para dev), ingere o vídeo, mantém uma janela circular de chunks em disco e,
 quando chamada, corta uma janela de tempo em torno do instante do clique
-(30s antes + 5s depois, por padrão) e gera o arquivo de replay.
+(duração por esporte, ver `SPORT`; sem esporte, 30s antes + 5s depois) e gera o arquivo de replay.
 
 ## Por que RTSP (e não WebRTC)
 
@@ -15,7 +15,7 @@ rodar num Raspberry Pi. WebRTC exigiria SFU, STUN/TURN e normalmente
 reencode: complexidade desnecessária já que aqui não há necessidade de
 latência interativa, só gravação contínua.
 
-Na fase de POC (celular no lugar da câmera), a ponte mais simples é o
+Na fase de POC (celular no place da câmera), a ponte mais simples é o
 celular dar **push via RTMP** para um servidor RTMP leve rodando aqui
 (`node-media-server`, embutido nesta API). O `ffmpeg` que gera os chunks
 consome esse RTMP local exatamente da mesma forma que vai consumir o RTSP
@@ -63,7 +63,8 @@ corte é mais que suficiente pra um replay esportivo.
    nem "exit" sozinha) o ffmpeg é morto e reiniciado.
 6. `POST /replay` corta uma janela **fixa** em torno do instante do clique:
    `REPLAY_PRE_ROLL_SECONDS` antes + `REPLAY_POST_ROLL_SECONDS` depois
-   (30+5=35s por padrão) — não é "os últimos N segundos até agora", é uma janela
+   (total por esporte, definido por `SPORT`: futsal/futebol 60s, basket 45s,
+   padel 30s, sempre com 5s de pós-roll; sem esporte, 30+5=35s) — não é "os últimos N segundos até agora", é uma janela
    ancorada no clique, com pedaço de antes e de depois do lance.
    - O pós-roll ainda nem aconteceu no instante do clique, então o endpoint
      **espera de verdade** (até `REPLAY_POST_ROLL_SECONDS` +
@@ -79,17 +80,25 @@ corte é mais que suficiente pra um replay esportivo.
      `.mp4` em `OUTPUT_DIR` — o `-t` na saída trava a duração total
      exatamente no alvo (`REPLAY_PRE_ROLL_SECONDS + REPLAY_POST_ROLL_SECONDS`),
      independente de sobra nas bordas dos chunks selecionados.
-   - Tenta subir pro servidor cloud (ainda não existe — fica como stub em
-     `src/services/uploader.ts`, controlado por `CLOUD_UPLOAD_URL`).
-   - Se o upload for confirmado, o `.mp4` local é apagado na hora — é
-     exatamente esse arquivo, não os chunks, que cresceria sem limite em
-     disco se ficasse. Se falhar (ou o cloud nem existir ainda), o arquivo
-     fica pra retry manual, mas com um teto (`OUTPUT_RETENTION_COUNT`) que
-     descarta os mais antigos além desse limite.
+   - Sobe pro web-server (`src/services/uploader.ts`), em dois passos: o
+     `.mp4` e o spritesheet vão **direto pro Vercel Blob** (token emitido por
+     `POST /api/edge/upload`; o vídeo não passa pela função do web-server) e
+     depois `POST /api/edge/replays` registra o replay com `VENUE_ID`,
+     `COURT_ID` e `SPORT`. O edge só conhece a `EDGE_API_KEY` (a chave do
+     **place**, gerada em `/admin/places/{id}` no web-server; um edge por
+     place), nunca o token do Blob. O place e a quadra têm de existir no admin.
+     Sem `WEB_SERVER_URL`/`EDGE_API_KEY`/`VENUE_ID`/`COURT_ID`/`SPORT`, o
+     replay fica só local. O QR do botão
+     aponta pra `{WEB_SERVER_URL}/replays/{VENUE_ID}/{COURT_ID}`.
+   - Se o upload for confirmado, o `.mp4` e o `.jpg` locais são apagados na
+     hora — são exatamente esses arquivos, não os chunks, que cresceriam sem
+     limite em disco se ficassem. Se falhar, os arquivos ficam pra retry
+     manual, mas com um teto (`OUTPUT_RETENTION_COUNT`) que descarta os mais
+     antigos além desse limite.
 
 ## Requisitos
 
-- Node.js 18+ (testado com 24)
+- Node.js 20+ (testado com 24; o upload usa `fs.openAsBlob`; o `engines` do `package.json` pede 25+)
 - `ffmpeg` disponível no `PATH` (no Raspberry Pi: `sudo apt install ffmpeg`;
   no Mac para dev: `brew install ffmpeg`)
 
@@ -120,8 +129,8 @@ npm run typecheck
   restarts? qual `INPUT_URL`?), quantos chunks existem na playlist agora, e
   se o stream está "ao vivo" (`live: true/false`, com base em
   `STALE_AFTER_SECONDS`).
-- `POST /replay` — gera o corte de `REPLAY_PRE_ROLL_SECONDS` antes +
-  `REPLAY_POST_ROLL_SECONDS` depois do clique (35s por padrão) e retorna o
+- `POST /replay` — gera o corte de antes + `REPLAY_POST_ROLL_SECONDS` depois
+  do clique (60/45/30s conforme `SPORT`; 35s sem esporte) e retorna o
   nome do arquivo gerado (e se o upload pro cloud rolou ou não). Demora
   pelo menos `REPLAY_POST_ROLL_SECONDS` pra responder, de propósito (ver
   seção "Como funciona"). Responde `503` se o stream estiver parado.
@@ -156,6 +165,11 @@ ffmpeg -f avfoundation -framerate 30 -i "0:0" \
   -c:a aac \
   -f flv rtmp://127.0.0.1:1935/live/stream
 ```
+
+Atalhos (rodando no host, com o edge de pé): `npm run sim:camera` publica a
+câmera sintética acima e `npm run sim:button` faz o `POST /replay` — é o
+"botão virtual" enquanto o botão físico não existe (nada no repo chama o
+`/replay` ainda). Deixe a câmera rodando o tempo do esporte (60s no futsal, 30s no padel) antes de apertar.
 
 Com isso publicando, `GET /status` já deve mostrar chunks aparecendo (~1s
 cada) e `live: true`, e `POST /replay` deve gerar um `.mp4` em `output/`.
@@ -286,8 +300,8 @@ chegar, em vez de estimar.
 - Trocar `INGEST_MODE=rtmp` por `external` + `INPUT_URL=rtsp://...` quando a
   câmera real chegar (o resto do pipeline não muda).
 - Autenticação no `POST /replay` (hoje está aberto).
-- Implementar de fato o upload em `src/services/uploader.ts` quando o
-  servidor cloud existir.
+- Retry automático de replays que ficaram em `OUTPUT_DIR` por falha de
+  upload (hoje o retry é manual).
 - Confirmar se o Raspberry Pi usado tem encoder de hardware H.264 (só
   relevante se algum dia precisarmos reencodar; hoje o pipeline inteiro
   evita isso de propósito).

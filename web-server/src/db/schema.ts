@@ -1,5 +1,14 @@
 import { relations } from "drizzle-orm";
-import { boolean, index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  index,
+  integer,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 // Funcionarios da quadra/clube que usam o painel de administracao. Esta e
 // tambem a tabela de usuarios do Better Auth (ver src/lib/auth.ts): `email`,
@@ -99,5 +108,76 @@ export const accountRelations = relations(account, ({ one }) => ({
   venueStaff: one(venueStaff, { fields: [account.userId], references: [venueStaff.id] }),
 }));
 
+// Local (clube/arena). `id` e o que vai na URL publica e no QR impresso da
+// quadra (/replays/{venueId}/{courtId}): definido na criacao e imutavel depois.
+// Cada local tem UMA chave de edge (o edge e um so por local e sobe replays de
+// qualquer quadra dele): guardamos so o hash sha256; o valor em claro aparece
+// uma unica vez, quando o admin a gera.
+export const venue = pgTable("venue", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  edgeKeyHash: text("edge_key_hash").unique(),
+  edgeKeyCreatedAt: timestamp("edge_key_created_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
+
+// Quadra de um local. `id` so e unico dentro do local (PK composta) e, como o
+// do local, e imutavel (esta impresso no QR). `sport` e o esporte padrao.
+export const court = pgTable(
+  "court",
+  {
+    venueId: text("venue_id")
+      .notNull()
+      .references(() => venue.id, { onDelete: "restrict" }),
+    id: text("id").notNull(),
+    name: text("name").notNull(),
+    sport: text("sport").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [primaryKey({ columns: [table.venueId, table.id] })],
+);
+
+export type Venue = typeof venue.$inferSelect;
+export type Court = typeof court.$inferSelect;
+
+// Replays enviados pelo edge-server. `venueId`/`courtId` ficam denormalizados
+// (sem FK: o replay e efemero, expira em 2h, e nao deve travar mudancas nas
+// quadras) e `sport` e o esporte "publicado" naquele momento: o do edge, que
+// cortou o video com a duracao dele. So guardamos as chaves (pathnames) do
+// storage, nunca URLs: o storage e privado e o acesso e sempre via
+// /api/replays/[id]/... (ver src/lib/storage.ts). A linha so e criada depois do
+// upload dos arquivos confirmado, entao nao ha "pendente".
+export const replay = pgTable(
+  "replay",
+  {
+    id: uuid("id").primaryKey(), // gerado pelo edge; faz parte da chave no storage
+    venueId: text("venue_id").notNull(),
+    courtId: text("court_id").notNull(),
+    sport: text("sport").notNull(),
+    videoPath: text("video_path").notNull(),
+    spritePath: text("sprite_path"),
+    spriteFrames: integer("sprite_frames"),
+    spriteColumns: integer("sprite_columns"),
+    durationSeconds: integer("duration_seconds"),
+    sizeBytes: integer("size_bytes").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    index("replay_court_created_idx").on(table.venueId, table.courtId, table.createdAt),
+    index("replay_expires_idx").on(table.expiresAt),
+  ],
+);
+
+export type Replay = typeof replay.$inferSelect;
+export type NewReplay = typeof replay.$inferInsert;
 export type VenueStaff = typeof venueStaff.$inferSelect;
 export type NewVenueStaff = typeof venueStaff.$inferInsert;

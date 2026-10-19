@@ -25,7 +25,7 @@ Apresentação do projeto: [`Presentation.pdf`](Presentation.pdf).
 1. A câmera envia vídeo continuamente pro **edge-server** (RTSP numa câmera IP;
    RTMP na fase de testes com celular).
 2. O edge grava chunks de ~1s numa janela circular em disco.
-3. `POST /replay` junta os chunks de 30s antes + 5s depois do clique em um mp4
+3. `POST /replay` junta os chunks de antes + 5s depois do clique em um mp4 (duração por esporte: futsal/futebol 60s, basket 45s, padel 30s)
    (ffmpeg, sem reencode) e gera um spritesheet com frames do vídeo.
 4. O mp4 sobe pro **web-server**, onde o usuário o acessa e baixa.
 
@@ -102,7 +102,8 @@ Principais variáveis (`.env`, defaults em `edge-server/src/config.ts`):
 | --- | --- | --- |
 | `INGEST_MODE` | `rtmp` | `rtmp` (POC) ou `external` (câmera RTSP) |
 | `INPUT_URL` | `rtmp://127.0.0.1:1935/live/stream` | Fonte do stream |
-| `REPLAY_PRE_ROLL_SECONDS` / `REPLAY_POST_ROLL_SECONDS` | `30` / `5` | Janela do replay |
+| `SPORT` | vazio | `futsal`, `futebol` (60s), `basket` (45s) ou `padel` (30s): define a duração do replay; outro valor não sobe |
+| `REPLAY_POST_ROLL_SECONDS` | `5` | Parte "depois do clique" (o resto da duração é "antes") |
 | `CHUNK_WINDOW_SECONDS` | `90` | Quanto de vídeo fica em disco |
 | `SPRITE_FRAMES` | `12` | Frames do spritesheet (`0` desliga) |
 | `CLOUD_UPLOAD_URL` | vazio | Destino do upload (hoje um stub) |
@@ -141,5 +142,5 @@ Passos 4 e 5 ainda por fazer.
 ## Próximos passos
 
 - Preparar o Raspberry Pi (serviço systemd, IP fixo, tmpfs).
-- Implementar no `web-server` o recebimento de upload, storage e download.
+- Modelar local/quadra no `web-server` (hoje o replay carrega esses dados do edge).
 - Trocar o celular de teste pela câmera RTSP real.

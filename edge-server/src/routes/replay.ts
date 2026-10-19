@@ -9,15 +9,16 @@ export const replayRouter = express.Router();
 replayRouter.post('/replay', async (_req: Request, res: Response) => {
   try {
     const replay = await buildReplay();
-    const upload = await uploadToCloud(replay.outputPath);
+    const upload = await uploadToCloud(replay);
 
     if (upload.uploaded) {
-      // Upload confirmado: o .mp4 local nao serve mais pra nada, e e
-      // exatamente esse arquivo que, sem isso, cresce sem limite em disco.
+      // Upload confirmado: o mp4 e o spritesheet locais nao servem mais pra
+      // nada, e sao exatamente eles que, sem isso, crescem sem limite em disco.
       fs.rmSync(replay.outputPath, { force: true });
+      if (replay.spritePath) fs.rmSync(replay.spritePath, { force: true });
     }
-    // Falha de upload mantem o mp4 pra retry manual, e o spritesheet fica
-    // sempre; o teto evita acumular sem limite.
+    // Falha de upload mantem os arquivos pra retry manual; o teto evita
+    // acumular sem limite.
     enforceOutputRetention();
 
     res.json({

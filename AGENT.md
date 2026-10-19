@@ -4,14 +4,14 @@
 
 POC para a startup **Press2Replay** (logo em `Press2Replay.png`, apresentação em
 `Presentation.pdf`, ambos na raiz): jogadores de partidas de futebol de salão, padel, etc.
-apertam um botão e recebem a gravação do **momento do lance** (~35s por
-padrão), sem precisar de operador de câmera ou edição manual.
+apertam um botão e recebem a gravação do **momento do lance** (30 a 60s,
+conforme o esporte), sem precisar de operador de câmera ou edição manual.
 
 Ideia central: uma câmera fica sempre filmando e fazendo *stream* para um
 servidor **edge** local (rodando num Raspberry Pi, na própria quadra). O edge
 mantém uma janela deslizante dos últimos segmentos de vídeo. Quando alguém
-aperta o botão de "replay", o edge junta a janela em torno do clique (30s
-antes + 5s depois, configurável) num único vídeo (com ffmpeg) e sobe esse arquivo para um servidor na **nuvem**, onde fica
+aperta o botão de "replay", o edge junta a janela em torno do clique (duração por
+esporte: 60s futsal/futebol, 45s basket, 30s padel; 5s depois) num único vídeo (com ffmpeg) e sobe esse arquivo para um servidor na **nuvem**, onde fica
 disponível para o jogador acessar depois (link, app, etc).
 
 Este arquivo existe para fixar o contexto entre sessões e é atualizado
@@ -43,8 +43,9 @@ Responsabilidades:
 - Gravar o stream em **chunks curtos** (~1 segundo) em disco, mantendo uma
   janela circular e descartando os mais antigos.
 - Expor `POST /replay`, que:
-  - corta uma janela fixa em torno do clique (30s antes + 5s depois, por
-    padrão) concatenando os chunks com **ffmpeg** (`-c copy`, sem reencode);
+  - corta uma janela fixa em torno do clique (duração por esporte: 60s
+    futsal/futebol, 45s basket, 30s padel; 5s são pós-roll)
+    concatenando os chunks com **ffmpeg** (`-c copy`, sem reencode);
   - salva o vídeo final localmente (`replay_<timestamp>.mp4`);
   - gera um **spritesheet** (`replay_<timestamp>.jpg`) com frames
     igualmente espaçados do início ao fim do vídeo;
@@ -62,9 +63,8 @@ via `create-next-app` e ainda no template inicial. Vai ser ao mesmo tempo:
   `CLOUD_UPLOAD_URL`) e serve os vídeos.
 
 Pontos em aberto:
-- Storage dos vídeos (S3-like, disco, etc.).
-- Autenticação de usuário e como um replay é associado a um usuário/quadra.
-- Autenticação do upload vindo do edge.
+- Como um replay se associa a um usuário/jogador (hoje a página da quadra é
+  pública, sem login).
 - O Next desta versão tem mudanças em relação ao que costuma estar nos
   modelos — `web-server/AGENTS.md` manda ler `node_modules/next/dist/docs/`
   antes de escrever código; seguir isso.
@@ -110,9 +110,13 @@ Pontos em aberto:
   - Segmentação via muxer HLS do ffmpeg (não o `segment` cru — a playlist
     HLS dá duração real e timestamp de cada chunk, necessário pra cortar por
     tempo de forma confiável).
-  - `POST /replay` corta uma janela **fixa** em torno do clique — 30s antes
-    + 5s depois por padrão (`REPLAY_PRE_ROLL_SECONDS`/
-    `REPLAY_POST_ROLL_SECONDS`), total travado exatamente nessa soma (`-t`
+  - `POST /replay` corta uma janela **fixa** em torno do clique. A duração
+    total vem do esporte (`SPORT` no edge, tabela em `src/config.ts`):
+    **futsal e futebol 60s, basket 45s, padel 30s**, sempre com 5s de pós-roll
+    (`REPLAY_POST_ROLL_SECONDS`) e o resto de pré-roll; outro valor de `SPORT`
+    derruba o boot (o web-server valida a mesma lista em `src/lib/sports.ts`).
+    Sem `SPORT` valem `REPLAY_PRE_ROLL_SECONDS`/`REPLAY_POST_ROLL_SECONDS`
+    (30s+5s). Total travado exatamente nessa soma (`-t`
     no ffmpeg) — não é "os últimos N segundos até agora". Como o pós-roll
     ainda nem aconteceu no instante do clique, o endpoint demora de
     propósito pelo menos o tempo do pós-roll pra responder (validado com
@@ -127,10 +131,14 @@ Pontos em aberto:
     `/replay` e limita `.mp4` e `.jpg` separadamente.
   - `GET /health` (liveness) e `GET /status` (ingest, chunks, `live`) já
     existem em `src/routes/status.ts`.
-  - Upload pro cloud é um stub (`src/services/uploader.ts`) — aguardando o
-    web-server aceitar o upload. Upload confirmado apaga o `.mp4` local na hora;
-    falha de upload mantém o arquivo com um teto de retenção
-    (`OUTPUT_RETENTION_COUNT`) pra não crescer sem limite.
+  - Upload pro cloud implementado em `src/services/uploader.ts` (ver
+    "Replays no web-server" abaixo): mp4 + spritesheet direto pro Vercel Blob,
+    depois registro no web-server. Config: `WEB_SERVER_URL`, `EDGE_API_KEY`
+    (chave do LOCAL, gerada no admin), `VENUE_ID`, `COURT_ID`, `SPORT` (sem
+    eles o replay fica só local). Hoje o edge ingere **uma** câmera/quadra
+    (um `COURT_ID`); um edge com várias câmeras ainda não existe (ver Falta).
+    Upload confirmado apaga o `.mp4` e o `.jpg` locais na hora; falha mantém
+    os arquivos com um teto de retenção (`OUTPUT_RETENTION_COUNT`).
   - Janela de retenção dos chunks (`CHUNK_WINDOW_SECONDS`) reduzida pra 90s
     (era 300s) — o `delete_segments` do ffmpeg já limpa continuamente a
     cada segundo, então só precisa de folga sobre o corte de 60s.
@@ -159,9 +167,47 @@ Pontos em aberto:
     (`requireStaff`/`requireAdmin`), dentro de `<Suspense>` por causa do Cache
     Components. **Cada página/consulta deve checar a sessão por conta própria**
     — o conteúdo estático de uma página vai no payload mesmo sem sessão.
-  - Falta: criar funcionários (admin), salas, upload/listagem de vídeos,
-    storage (Vercel Blob atrás de uma camada fina; guardar só a chave no banco),
-    página pública do jogador, hotsite.
+  - **Places e quadras** (admin, só `isAdmin`, em `/admin/places`): tabelas
+    `venue` (`id` = o da URL/QR, **imutável**, nome, `edgeKeyHash`) e `court`
+    (PK `(venueId, id)`, `id` único só dentro do place e imutável, nome, esporte
+    padrão). Telas: lista de places, e por place: editar nome, chave do edge,
+    quadras (criar/editar nome e esporte) e os replays ainda válidos agrupados
+    por quadra. Server actions em `src/app/admin/places/actions.ts`, cada uma
+    com `requireAdmin()`. Não há exclusão de place/quadra (os QRs impressos
+    dependem deles). `/admin` continua só com `requireStaff` (não-admin não
+    entra em loop de redirect).
+  - **Chave do edge, por place**: um edge por place, uma chave por place, que
+    sobe replays de qualquer quadra dele. Gerada/rotacionada no admin
+    (`randomBytes(32)`, prefixo `p2r_`); só o sha256 fica no banco e o valor em
+    claro aparece uma única vez. Rotacionar invalida a anterior na hora. O
+    local vem **sempre da chave** (`authenticateEdge`, `src/lib/edge-auth.ts`),
+    nunca do corpo; `EDGE_API_KEY` não é mais variável do web-server.
+  - **Replays no web-server**:
+    - **Storage**: Vercel Blob, store **privado** (criar em Storage > Blob >
+      Private; `BLOB_READ_WRITE_TOKEN` em dev, OIDC na Vercel). Só
+      `src/lib/storage.ts` importa o SDK. O banco guarda só os pathnames
+      (`replays/{venueId}/{courtId}/{replayId}.mp4|.jpg`), nunca URLs.
+    - **Upload (só do edge)**: `POST /api/edge/upload` emite tokens de upload
+      direto pro Blob e só emite se a chave é do place do pathname **e** a
+      quadra existe nele (valida também tipo/tamanho); depois
+      `POST /api/edge/replays` confere o `venueId` do corpo contra a chave, que
+      a quadra existe e que os arquivos estão no storage, e cria a linha em
+      `replay` (`venueId`, `courtId`, `sport`, sprite, `expiresAt`). `sport` é
+      o do edge (com o qual ele cortou o vídeo); o esporte padrão da quadra é
+      informativo.
+    - **Jogador**: `/replays/[venueId]/[courtId]` (pública, destino do QR fixo
+      do botão; 404 se o place/quadra não existe no admin) lista os replays
+      ainda dentro do TTL (2h, `REPLAY_TTL_MINUTES`), com chips do esporte e do
+      nome da quadra, preview por spritesheet e botão baixar. Os arquivos só
+      saem por `/api/replays/[id]/video|sprite` (stream via `get()`, vídeo como
+      `attachment`), que checa `expiresAt` a cada request.
+    - **Expiração**: a fonte da verdade é `replay.expiresAt` (listagem e
+      download). O cron diário `/api/cron/purge` (`vercel.json`; Hobby só
+      permite 1x/dia) só apaga storage + linhas expirados e objetos órfãos;
+      exige `CRON_SECRET`.
+  - Falta: criar funcionários (admin), QR por quadra no admin, edge com várias
+    câmeras (um segmenter por câmera, `POST /replay/:courtId`, esporte por
+    quadra), hotsite.
 - **Raspberry Pi 4 Model B**: ainda a preparar (gravar SD de 32GB, instalar
   Node/ffmpeg, serviço, IP fixo).
 - Este documento deve ser atualizado conforme decisões técnicas forem tomadas.

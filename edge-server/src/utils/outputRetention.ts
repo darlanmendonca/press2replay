@@ -3,8 +3,8 @@ import path from 'node:path';
 import { config } from '../config';
 
 // So sobra arquivo em OUTPUT_DIR quando o upload pro cloud falha (upload OK
-// apaga o .mp4 local na hora, ver routes/replay.ts). Isso aqui e so um teto
-// pra esse acumulo de falhas nao crescer sem limite.
+// apaga o .mp4 e o .jpg locais na hora, ver routes/replay.ts). Isso aqui e so
+// um teto pra esse acumulo de falhas nao crescer sem limite.
 export function enforceOutputRetention(): void {
   let files: string[];
   try {
@@ -13,8 +13,8 @@ export function enforceOutputRetention(): void {
     return;
   }
 
-  // .mp4 (replay) e .jpg (spritesheet) tem tetos independentes: o sprite nao
-  // e apagado no upload OK (o uploader ainda so envia o mp4).
+  // .mp4 (replay) e .jpg (spritesheet) tem tetos independentes (o sprite pode
+  // faltar num replay, entao as contagens nao andam juntas).
   for (const ext of ['.mp4', '.jpg']) {
     const sorted = files
       .filter((name) => name.endsWith(ext))

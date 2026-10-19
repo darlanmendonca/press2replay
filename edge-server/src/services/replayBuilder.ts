@@ -52,7 +52,7 @@ async function waitForPostRoll(targetCoverage: Date) {
 }
 
 // Corta uma janela fixa em torno do instante do clique: REPLAY_PRE_ROLL_SECONDS
-// antes + REPLAY_POST_ROLL_SECONDS depois (50+10 = 60s por padrao). Concatena
+// antes + REPLAY_POST_ROLL_SECONDS depois (total por esporte, ver config.ts). Concatena
 // sem reencodar (-c copy, demuxer concat) e usa -t na saida pra travar a
 // duracao total exatamente no alvo, independente de sobra nas bordas dos
 // chunks selecionados.

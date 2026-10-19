@@ -13,6 +13,30 @@ const outputDir = path.resolve(process.cwd(), process.env.OUTPUT_DIR || './outpu
 
 export type IngestMode = 'rtmp' | 'external';
 
+// Duracao TOTAL do replay por esporte, em segundos. So estes esportes sao
+// aceitos (o web-server valida a mesma lista em src/lib/sports.ts - manter as
+// duas em sincronia).
+export const SPORT_REPLAY_SECONDS = {
+  futsal: 60,
+  futebol: 60,
+  padel: 30,
+  basket: 45,
+} as const;
+export type Sport = keyof typeof SPORT_REPLAY_SECONDS;
+
+// SPORT vazio = sem esporte (replay so local, janela do REPLAY_*_ROLL_SECONDS).
+// Valor fora da lista derruba o boot com mensagem clara, em vez de gravar
+// replays com a duracao errada.
+function parseSport(raw: string | undefined): Sport | '' {
+  const value = (raw ?? '').trim().toLowerCase();
+  if (!value) return '';
+  if (value in SPORT_REPLAY_SECONDS) return value as Sport;
+  throw new Error(`SPORT invalido: "${raw}". Use um de: ${Object.keys(SPORT_REPLAY_SECONDS).join(', ')}`);
+}
+
+const sport = parseSport(process.env.SPORT);
+const postRollSeconds = int(process.env.REPLAY_POST_ROLL_SECONDS, 5);
+
 export const config = {
   port: int(process.env.PORT, 3000),
 
@@ -31,11 +55,15 @@ export const config = {
   chunkWindowSeconds: int(process.env.CHUNK_WINDOW_SECONDS, 90),
 
   // O /replay corta uma janela fixa em torno do instante do clique: X
-  // segundos de "antes" + Y segundos de "depois". Total = 60s por padrao
-  // (50+10). Selecionado por duracao real dos chunks na playlist, nao por
-  // quantidade de arquivos.
-  replayPreRollSeconds: int(process.env.REPLAY_PRE_ROLL_SECONDS, 30),
-  replayPostRollSeconds: int(process.env.REPLAY_POST_ROLL_SECONDS, 5),
+  // segundos de "antes" + Y segundos de "depois". Com SPORT definido, o total
+  // vem da tabela SPORT_REPLAY_SECONDS (futsal/futebol 60s, basket 45s, padel
+  // 30s): o pos-roll fica em REPLAY_POST_ROLL_SECONDS (5s) e o resto e
+  // pre-roll - REPLAY_PRE_ROLL_SECONDS so vale sem SPORT. Selecionado por
+  // duracao real dos chunks na playlist, nao por quantidade de arquivos.
+  replayPreRollSeconds: sport
+    ? SPORT_REPLAY_SECONDS[sport] - postRollSeconds
+    : int(process.env.REPLAY_PRE_ROLL_SECONDS, 30),
+  replayPostRollSeconds: postRollSeconds,
 
   // Se o ultimo chunk da playlist for mais antigo que isto (em relacao ao
   // instante do clique), consideramos o stream parado e recusamos o
@@ -62,10 +90,20 @@ export const config = {
   chunksDir,
   outputDir,
 
-  cloudUploadUrl: process.env.CLOUD_UPLOAD_URL || '',
+  // Upload pro web-server (cloud). Sem WEB_SERVER_URL/EDGE_API_KEY/VENUE_ID/
+  // COURT_ID/SPORT o replay fica so local (ver services/uploader.ts).
+  // EDGE_API_KEY e a chave do LOCAL (gerada no admin): o edge e um so por local.
+  // VENUE_ID e COURT_ID entram no caminho do storage e na URL do QR da quadra
+  // (/replays/{VENUE_ID}/{COURT_ID}) e tem de existir no admin: so letras,
+  // numeros, '-' e '_'. O COURT_ID so e unico dentro do local.
+  webServerUrl: (process.env.WEB_SERVER_URL || '').replace(/\/+$/, ''),
+  edgeApiKey: process.env.EDGE_API_KEY || '',
+  venueId: process.env.VENUE_ID || '',
+  courtId: process.env.COURT_ID || '',
+  sport,
 
   // Quantos replays com upload falho ficam guardados em OUTPUT_DIR pra
-  // retry manual. O upload bem-sucedido apaga o arquivo local na hora -
-  // isso aqui e so um limite pro que fica acumulado quando o upload falha.
+  // retry manual. O upload bem-sucedido apaga o mp4 e o spritesheet locais na
+  // hora - isso aqui e so um limite pro que fica acumulado quando o upload falha.
   outputRetentionCount: int(process.env.OUTPUT_RETENTION_COUNT, 20),
 };
