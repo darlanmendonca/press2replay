@@ -1,7 +1,8 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
-import { ReplayCard } from "@/components/replay-card";
+import { MomentCard } from "@/components/moment-card";
+import { groupMoments, momentCardProps } from "@/lib/moments";
 import { listRecentReplays, REPLAY_TTL_MINUTES } from "@/lib/replays";
 import { ID_PATTERN } from "@/lib/storage";
 import { getCourt } from "@/lib/venues";
@@ -59,18 +60,9 @@ async function CourtReplays({
         </p>
       ) : (
         <ul className="mt-8 grid gap-6 sm:grid-cols-2">
-          {replays.map((r) => (
-            <li key={r.id}>
-              <ReplayCard
-                id={r.id}
-                createdAt={r.createdAt.toISOString()}
-                durationSeconds={r.durationSeconds}
-                sprite={
-                  r.spritePath && r.spriteFrames && r.spriteColumns
-                    ? { frames: r.spriteFrames, columns: r.spriteColumns }
-                    : null
-                }
-              />
+          {groupMoments(replays).map((moment) => (
+            <li key={moment.id}>
+              <MomentCard {...momentCardProps(moment)} />
             </li>
           ))}
         </ul>

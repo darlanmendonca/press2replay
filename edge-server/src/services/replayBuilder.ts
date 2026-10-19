@@ -2,7 +2,8 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import { config } from '../config';
+import { randomUUID } from 'node:crypto';
+import { config, Camera } from '../config';
 import { getSegments, getLastSegmentEnd, getSegmentsBetween } from '../utils/chunkStore';
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
@@ -38,31 +39,34 @@ function runFfmpeg(args: string[]): Promise<void> {
 // no momento do clique, entao o /replay so pode responder depois deles
 // serem de fato gravados. Depois do timeout, segue com o que tiver
 // disponivel (best effort).
-async function waitForPostRoll(targetCoverage: Date) {
-  const deadline = Date.now() + config.replayPostRollSeconds * 1000 + config.postRollWaitMarginMs;
+async function waitForPostRoll(camera: Camera, targetCoverage: Date) {
+  const deadline = Date.now() + camera.replayPostRollSeconds * 1000 + config.postRollWaitMarginMs;
   while (Date.now() < deadline) {
-    const segments = getSegments();
+    const segments = getSegments(camera);
     const lastEnd = getLastSegmentEnd(segments);
     if (lastEnd && lastEnd.getTime() >= targetCoverage.getTime()) {
       return segments;
     }
     await sleep(250);
   }
-  return getSegments();
+  return getSegments(camera);
 }
 
-// Corta uma janela fixa em torno do instante do clique: REPLAY_PRE_ROLL_SECONDS
-// antes + REPLAY_POST_ROLL_SECONDS depois (total por esporte, ver config.ts). Concatena
+// Corta, a partir dos chunks DESTA camera, uma janela fixa em torno do instante
+// do clique: pre-roll antes + pos-roll depois (total por esporte, ver
+// config.ts). `pressTimestamp` e o instante do clique: todas as cameras de uma
+// quadra recebem o MESMO, pra os angulos do momento cobrirem a mesma janela.
+// Cameras diferentes usam pastas, playlists e arquivos separados, entao varios
+// replays (angulos, ou quadras diferentes) podem rodar ao mesmo tempo. Concatena
 // sem reencodar (-c copy, demuxer concat) e usa -t na saida pra travar a
 // duracao total exatamente no alvo, independente de sobra nas bordas dos
 // chunks selecionados.
-export async function buildReplay(): Promise<ReplayResult> {
-  const pressTimestamp = new Date();
-  const totalSeconds = config.replayPreRollSeconds + config.replayPostRollSeconds;
-  const windowStartMs = pressTimestamp.getTime() - config.replayPreRollSeconds * 1000;
-  const targetCoverage = new Date(pressTimestamp.getTime() + config.replayPostRollSeconds * 1000);
+export async function buildReplay(camera: Camera, pressTimestamp: Date = new Date()): Promise<ReplayResult> {
+  const totalSeconds = camera.replayPreRollSeconds + camera.replayPostRollSeconds;
+  const windowStartMs = pressTimestamp.getTime() - camera.replayPreRollSeconds * 1000;
+  const targetCoverage = new Date(pressTimestamp.getTime() + camera.replayPostRollSeconds * 1000);
 
-  const segments = await waitForPostRoll(targetCoverage);
+  const segments = await waitForPostRoll(camera, targetCoverage);
 
   if (segments.length === 0) {
     const err: StreamError = new Error('Nenhum chunk disponivel ainda - stream nao esta chegando (ou acabou de reiniciar)');
@@ -88,17 +92,20 @@ export async function buildReplay(): Promise<ReplayResult> {
     throw new Error('Nenhum chunk cobre a janela de pre-roll/pos-roll pedida (stream comecou ha pouco?)');
   }
 
-  fs.mkdirSync(config.outputDir, { recursive: true });
+  fs.mkdirSync(camera.outputDir, { recursive: true });
 
-  const listPath = path.join(os.tmpdir(), `replay-list-${Date.now()}.txt`);
+  // UUID (e nao Date.now): dois botoes apertados no mesmo milissegundo, em
+  // quadras diferentes, nao podem dividir o mesmo arquivo de lista.
+  const listPath = path.join(os.tmpdir(), `replay-list-${randomUUID()}.txt`);
   const listContent = window
     .map((s) => `file '${s.fullPath.replace(/'/g, "'\\''")}'`)
     .join('\n');
   fs.writeFileSync(listPath, listContent);
 
   const timestamp = pressTimestamp.toISOString().replace(/[:.]/g, '-');
-  const outputName = `replay_${timestamp}.mp4`;
-  const outputPath = path.join(config.outputDir, outputName);
+  const label = `${camera.courtId || 'default'}_${camera.cameraId}`;
+  const outputName = `replay_${label}_${timestamp}.mp4`;
+  const outputPath = path.join(camera.outputDir, outputName);
 
   try {
     await runFfmpeg([
@@ -123,8 +130,8 @@ export async function buildReplay(): Promise<ReplayResult> {
   let spriteName: string | undefined;
   if (config.spriteFrames > 0) {
     try {
-      spriteName = `replay_${timestamp}.jpg`;
-      spritePath = path.join(config.outputDir, spriteName);
+      spriteName = `replay_${label}_${timestamp}.jpg`;
+      spritePath = path.join(camera.outputDir, spriteName);
       await buildSpritesheet(outputPath, spritePath, approxDurationSeconds);
     } catch (err) {
       console.error(`[replay] falha ao gerar spritesheet: ${err instanceof Error ? err.message : err}`);

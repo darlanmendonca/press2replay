@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { config } from '../config';
+import { config, Camera } from '../config';
 
 export interface Segment {
   filename: string;
@@ -9,8 +9,9 @@ export interface Segment {
   programDateTime: Date | null;
 }
 
-export function getPlaylistPath(): string {
-  return path.join(config.chunksDir, 'live.m3u8');
+// Cada camera tem a sua propria pasta de chunks e a sua playlist.
+export function getPlaylistPath(camera: Camera): string {
+  return path.join(camera.chunksDir, 'live.m3u8');
 }
 
 // O ffmpeg (rodando com -f hls) reescreve live.m3u8 a cada chunk fechado,
@@ -18,10 +19,10 @@ export function getPlaylistPath(): string {
 // com a duracao real (#EXTINF) e o horario de parede (#EXT-X-PROGRAM-DATE-TIME)
 // de cada um. Isso e o que nos deixa cortar por tempo real em vez de contar
 // arquivos ou confiar no nome/mtime deles.
-export function getSegments(): Segment[] {
+export function getSegments(camera: Camera): Segment[] {
   let text: string;
   try {
-    text = fs.readFileSync(getPlaylistPath(), 'utf8');
+    text = fs.readFileSync(getPlaylistPath(camera), 'utf8');
   } catch {
     return [];
   }
@@ -40,7 +41,7 @@ export function getSegments(): Segment[] {
       const parsed = Number.parseFloat(line.slice('#EXTINF:'.length));
       pendingDuration = Number.isFinite(parsed) ? parsed : null;
     } else if (!line.startsWith('#')) {
-      const fullPath = path.join(config.chunksDir, line);
+      const fullPath = path.join(camera.chunksDir, line);
       segments.push({
         filename: line,
         fullPath,
@@ -58,7 +59,7 @@ export function getSegments(): Segment[] {
 // Instante (wall clock) em que o ultimo chunk fechado termina. Usado tanto
 // pra decidir se o stream esta "vivo" quanto pra saber se ja existe cobertura
 // do instante em que o botao de replay foi apertado.
-export function getLastSegmentEnd(segments: Segment[] = getSegments()): Date | null {
+export function getLastSegmentEnd(segments: Segment[]): Date | null {
   const last = segments[segments.length - 1];
   if (!last || !last.programDateTime || Number.isNaN(last.programDateTime.getTime())) {
     return null;
@@ -73,7 +74,7 @@ export function getLastSegmentEnd(segments: Segment[] = getSegments()): Date | n
 export function getSegmentsBetween(
   startMs: number,
   endMs: number,
-  segments: Segment[] = getSegments(),
+  segments: Segment[],
 ): Segment[] {
   return segments.filter((segment) => {
     if (!segment.programDateTime) return false;

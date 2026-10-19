@@ -1,8 +1,13 @@
 node_modules/
 dist/
 .env
-chunks/*.ts
-output/*.mp4
 *.log
-chunks/*.m3u8
-output/*.jpg
+
+# chunks e replays ficam em subpastas por camera (chunks/{courtId}, output/{courtId})
+chunks/*
+!chunks/.gitkeep
+output/*
+!output/.gitkeep
+
+# cameras.json tem as URLs RTSP (com a senha da camera): so no edge; use cameras.example.json de modelo
+cameras.json

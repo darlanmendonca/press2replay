@@ -1,9 +1,11 @@
 # Edge server — Press2Replay
 
 API em Node.js que roda no Raspberry Pi (ou, por enquanto, na sua máquina
-para dev), ingere o vídeo, mantém uma janela circular de chunks em disco e,
-quando chamada, corta uma janela de tempo em torno do instante do clique
-(duração por esporte, ver `SPORT`; sem esporte, 30s antes + 5s depois) e gera o arquivo de replay.
+para dev), ingere o vídeo de **uma ou mais câmeras (uma por quadra)**, mantém
+uma janela circular de chunks em disco por câmera e, quando chamada, corta uma
+janela de tempo em torno do instante do clique na quadra pedida (duração por
+esporte; sem esporte, 30s antes + 5s depois) e gera o arquivo de replay.
+Um edge atende um lugar inteiro: ver "Várias câmeras" abaixo.
 
 ## Por que RTSP (e não WebRTC)
 
@@ -15,7 +17,7 @@ rodar num Raspberry Pi. WebRTC exigiria SFU, STUN/TURN e normalmente
 reencode: complexidade desnecessária já que aqui não há necessidade de
 latência interativa, só gravação contínua.
 
-Na fase de POC (celular no place da câmera), a ponte mais simples é o
+Na fase de POC (celular no lugar da câmera), a ponte mais simples é o
 celular dar **push via RTMP** para um servidor RTMP leve rodando aqui
 (`node-media-server`, embutido nesta API). O `ffmpeg` que gera os chunks
 consome esse RTMP local exatamente da mesma forma que vai consumir o RTSP
@@ -35,13 +37,78 @@ suave em NVRs), mas vale sempre conferir/configurar explicitamente. Não faz
 sentido perseguir precisão de frame aqui — 1–2s de precisão no início do
 corte é mais que suficiente pra um replay esportivo.
 
+## Várias câmeras (uma ou mais por quadra)
+
+Um edge atende o lugar todo: **uma ou mais câmeras por quadra** (ângulos). O
+`courtId` é a quadra (o mesmo id do admin e da URL do QR) e o `cameraId`
+identifica a câmera dentro da quadra. Um aperto do botão é um **momento**: todas
+as câmeras da quadra cortam a mesma janela ao mesmo tempo, cada uma sobe o seu
+replay e o web-server os mostra juntos, com um seletor de ângulo.
+
+**Configuração** — `cameras.json` (`CAMERAS_FILE`, default `./cameras.json`;
+modelo em `cameras.example.json`), uma entrada por câmera:
+
+```json
+[
+  { "courtId": "1", "cameraId": "fundo",   "sport": "padel",  "inputUrl": "rtsp://usuario:senha@192.168.1.101:554/stream1" },
+  { "courtId": "1", "cameraId": "lateral", "sport": "padel",  "inputUrl": "rtsp://usuario:senha@192.168.1.102:554/stream1" },
+  { "courtId": "2", "sport": "futsal" }
+]
+```
+
+- `sport` é obrigatório e é **da quadra**: as câmeras da mesma quadra têm de
+  concordar (define a duração do replay).
+- `cameraId` (letras, números, `-` e `_`, até 64) é livre, **único dentro da
+  quadra** e vai no caminho do storage, então não o mude depois de haver
+  replays. É opcional só em quadra de **uma** câmera (vira `main`); com mais de
+  uma, todas precisam dele.
+- `inputUrl` é opcional com `INGEST_MODE=rtmp`: sem `cameraId` a chave do stream
+  é o `courtId` (`rtmp://IP_DO_PI:1935/live/{courtId}`); com `cameraId` é
+  `{courtId}.{cameraId}` (o `.` não é permitido nos ids, então `a-b`+`c` não
+  colide com `a`+`b-c`). Com `external` é obrigatório (RTSP).
+- O arquivo fica **só no edge** (tem a senha das câmeras; está no `.gitignore`)
+  e o edge sobe sem rede. A senha nunca vai pro log nem pro `/status`.
+- Erros (câmera repetida, quadra com várias câmeras sem `cameraId`, esportes
+  diferentes na mesma quadra, id mal formado, lista vazia, `inputUrl` faltando)
+  derrubam o boot com a mensagem do problema.
+- **Sem `cameras.json`** o edge monta uma câmera só a partir de `COURT_ID`,
+  `SPORT` e `INPUT_URL` do `.env`, como sempre funcionou.
+- A quadra tem de existir no admin do web-server (ver `VENUE_ID`/
+  `EDGE_API_KEY`). **Não há cadastro de câmeras no admin**: o `cameraId` só tem o
+  formato conferido, então um erro de digitação aqui cria um ângulo "fantasma"
+  na página. O esporte do `cameras.json` é o que vai no replay; o "esporte
+  padrão" da quadra no admin é só informativo.
+
+**Uso** — cada botão chama a rota da própria quadra: `POST /replay/{courtId}`
+dispara **todas** as câmeras dela e responde com o `momentId` e o resultado de
+cada câmera. É `200` se pelo menos uma câmera gerou o replay (as que falharam
+vêm listadas e o momento sai só com os ângulos que existem); só é erro se
+**todas** falharem (`503` se estavam todas paradas, `500` nos outros casos).
+`404` se a quadra não tem câmera neste edge. `POST /replay` sem quadra só
+funciona com **uma** quadra (mesmo com várias câmeras nela); com várias quadras
+responde `400` em vez de adivinhar. Cada câmera é independente: uma parada não
+afeta as outras, e botões apertados ao mesmo tempo geram replays separados.
+
+**Pastas**: `chunks/{courtId}/{cameraId}` e `output/{courtId}/{cameraId}`, com o
+teto de retenção por câmera.
+
+**Recursos** (Raspberry Pi 4): cada câmera adiciona um processo `ffmpeg` (com
+`-c copy`, quase só I/O) e a sua própria janela de chunks — some a RAM do
+`tmpfs` por câmera (ver "Desgaste de disco") —, e **cada replay pedido decodifica
+um vídeo pra gerar o spritesheet**: um aperto numa quadra de 3 câmeras decodifica
+3 ao mesmo tempo, e vários botões juntos disputam CPU. Não há fila: meça no
+hardware real antes de fixar quantas câmeras cabem num Pi.
+
+**Segurança**: `POST /replay/:courtId`, `/status` e a publicação RTMP não têm
+autenticação — mantenha o edge na rede local do lugar.
+
 ## Como funciona
 
 1. `INGEST_MODE=rtmp` (padrão na POC): sobe um servidor RTMP local na porta
    `RTMP_PORT` (default 1935). O celular publica o stream nele.
-2. O `Segmenter` roda um processo `ffmpeg` com o muxer **HLS** (`-f hls`)
-   lendo `INPUT_URL`, sem reencodar. A cada chunk fechado o ffmpeg reescreve
-   `chunks/live.m3u8`, listando cada segmento com sua **duração real**
+2. Cada câmera tem o seu `Segmenter`: um processo `ffmpeg` com o muxer
+   **HLS** (`-f hls`) lendo o `inputUrl` dela, sem reencodar. A cada chunk
+   fechado o ffmpeg reescreve `chunks/{courtId}/{cameraId}/live.m3u8`, listando cada segmento com sua **duração real**
    (`#EXTINF`) e **horário de parede** (`#EXT-X-PROGRAM-DATE-TIME`) — é isso
    que permite cortar por tempo de verdade em vez de contar arquivos ou
    confiar em nome/mtime (nomes de arquivo são reciclados e não servem como
@@ -125,15 +192,21 @@ npm run typecheck
 ## Endpoints
 
 - `GET /health` — liveness simples.
-- `GET /status` — estado do processo de ingestão (rodando? quantos
-  restarts? qual `INPUT_URL`?), quantos chunks existem na playlist agora, e
-  se o stream está "ao vivo" (`live: true/false`, com base em
-  `STALE_AFTER_SECONDS`).
-- `POST /replay` — gera o corte de antes + `REPLAY_POST_ROLL_SECONDS` depois
-  do clique (60/45/30s conforme `SPORT`; 35s sem esporte) e retorna o
-  nome do arquivo gerado (e se o upload pro cloud rolou ou não). Demora
-  pelo menos `REPLAY_POST_ROLL_SECONDS` pra responder, de propósito (ver
-  seção "Como funciona"). Responde `503` se o stream estiver parado.
+- `GET /status` — `{ cameras: [...] }`, uma entrada por câmera:
+  `courtId`, `cameraId`, `sport`, estado da ingestão (rodando? quantos restarts? qual
+  entrada, sem senha?), quantos chunks existem na playlist agora, se o stream
+  está "ao vivo" (`live: true/false`, com base em `STALE_AFTER_SECONDS`) e o
+  pré/pós-roll. `GET /status/:courtId` devolve `{ courtId, cameras }` só da
+  quadra (404 se não existe).
+- `POST /replay/:courtId` — gera o momento da quadra: cada câmera corta pré-roll
+  antes + `REPLAY_POST_ROLL_SECONDS` depois do clique (60/45/30s conforme o
+  esporte) e sobe o seu replay. Retorna o `momentId` e, por câmera, o arquivo e
+  se o upload pro cloud rolou ou não. Demora pelo menos o pós-roll pra
+  responder, de propósito (ver seção "Como funciona"). `503` se **todas** as
+  câmeras da quadra estiverem paradas (uma só parada não impede o momento),
+  `404` se a quadra não tem câmera aqui.
+- `POST /replay` — atalho do edge de uma quadra só; com várias quadras
+  responde `400`.
 
 ## Testando sem celular nem câmera
 
@@ -169,7 +242,12 @@ ffmpeg -f avfoundation -framerate 30 -i "0:0" \
 Atalhos (rodando no host, com o edge de pé): `npm run sim:camera` publica a
 câmera sintética acima e `npm run sim:button` faz o `POST /replay` — é o
 "botão virtual" enquanto o botão físico não existe (nada no repo chama o
-`/replay` ainda). Deixe a câmera rodando o tempo do esporte (60s no futsal, 30s no padel) antes de apertar.
+`/replay` ainda). Com várias câmeras, defina a quadra e o ângulo:
+`COURT=1 CAMERA=fundo npm run sim:camera` publica na chave `1.fundo` (sem
+`CAMERA`, na chave `1`) e `COURT=1 npm run sim:button` chama `/replay/1`, que
+dispara todos os ângulos da quadra; `PATTERN=testsrc2 TONE=440` muda a imagem e o
+som pra distinguir câmeras (todas com o seu `courtId`/`cameraId` no
+`cameras.json`). Deixe a câmera rodando o tempo do esporte (60s no futsal, 30s no padel) antes de apertar.
 
 Com isso publicando, `GET /status` já deve mostrar chunks aparecendo (~1s
 cada) e `live: true`, e `POST /replay` deve gerar um `.mp4` em `output/`.
@@ -256,8 +334,12 @@ continuamente pelo `delete_segments`/pelo teto de retenção, o consumo de
 RAM fica previsível:
 
 ```
-tamanho ≈ CHUNK_WINDOW_SECONDS × bitrate + replays em transito
+tamanho ≈ nº de câmeras × CHUNK_WINDOW_SECONDS × bitrate + replays em transito
 ```
+
+(Com várias câmeras, cada uma tem a sua janela em `chunks/{courtId}` e o seu
+`output/{courtId}`: multiplique pelo número de câmeras. Os exemplos abaixo são
+**por câmera**.)
 
 Exemplos com `CHUNK_WINDOW_SECONDS=90`:
 - 1080p a 8 Mbps: ≈ **90 MB**
@@ -297,8 +379,13 @@ chegar, em vez de estimar.
 
 ## Próximos passos / pontos em aberto
 
-- Trocar `INGEST_MODE=rtmp` por `external` + `INPUT_URL=rtsp://...` quando a
-  câmera real chegar (o resto do pipeline não muda).
+- Trocar `INGEST_MODE=rtmp` por `external` + `inputUrl` RTSP (no
+  `cameras.json`, ou `INPUT_URL` no modo de uma câmera) quando a câmera real
+  chegar (o resto do pipeline não muda).
+- Ler do admin a lista de quadras e os esportes (hoje o `cameras.json` repete o
+  esporte que também está cadastrado lá; o `inputUrl` continua local).
+- Cadastro de câmeras no admin (hoje o `cameraId` só tem o formato conferido; um
+  erro de digitação cria um ângulo "fantasma").
 - Autenticação no `POST /replay` (hoje está aberto).
 - Retry automático de replays que ficaram em `OUTPUT_DIR` por falha de
   upload (hoje o retry é manual).

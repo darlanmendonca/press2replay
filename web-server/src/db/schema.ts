@@ -148,7 +148,11 @@ export const court = pgTable(
 export type Venue = typeof venue.$inferSelect;
 export type Court = typeof court.$inferSelect;
 
-// Replays enviados pelo edge-server. `venueId`/`courtId` ficam denormalizados
+// Replays enviados pelo edge-server. Uma quadra pode ter varias cameras
+// (angulos): um aperto do botao gera UM momento (`momentId`, o mesmo em todas)
+// com um replay por camera (`cameraId`, livre e unico so dentro da quadra; nao
+// ha tabela de cameras, o edge manda o id). Replays antigos viram momentos de
+// uma camera so ('main'). `venueId`/`courtId` ficam denormalizados
 // (sem FK: o replay e efemero, expira em 2h, e nao deve travar mudancas nas
 // quadras) e `sport` e o esporte "publicado" naquele momento: o do edge, que
 // cortou o video com a duracao dele. So guardamos as chaves (pathnames) do
@@ -161,6 +165,8 @@ export const replay = pgTable(
     id: uuid("id").primaryKey(), // gerado pelo edge; faz parte da chave no storage
     venueId: text("venue_id").notNull(),
     courtId: text("court_id").notNull(),
+    cameraId: text("camera_id").notNull().default("main"),
+    momentId: uuid("moment_id").notNull().defaultRandom(),
     sport: text("sport").notNull(),
     videoPath: text("video_path").notNull(),
     spritePath: text("sprite_path"),

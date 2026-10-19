@@ -5,7 +5,8 @@ import { config } from '../config';
 // Larix Broadcaster) da push do stream pra ca, no lugar de uma camera IP
 // real. Quando a camera com RTSP nativo chegar, isso nem precisa subir
 // (ver INGEST_MODE=external em config.ts) - o ffmpeg do segmenter passa a
-// consumir a URL RTSP da camera diretamente.
+// consumir a URL RTSP da camera diretamente. Com varias cameras, cada uma publica
+// na sua chave: rtmp://IP:1935/live/{courtId} (ver cameras.json).
 export function startRtmpIngest(): NodeMediaServer {
   const nms = new NodeMediaServer({
     rtmp: {

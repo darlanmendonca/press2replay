@@ -22,7 +22,7 @@ Apresentação do projeto: [`Presentation.pdf`](Presentation.pdf).
                 POST /replay corta o lance               seus vídeos
 ```
 
-1. A câmera envia vídeo continuamente pro **edge-server** (RTSP numa câmera IP;
+1. As câmeras (uma ou mais por quadra; um edge atende o lugar todo) enviam vídeo continuamente pro **edge-server** (RTSP numa câmera IP;
    RTMP na fase de testes com celular).
 2. O edge grava chunks de ~1s numa janela circular em disco.
 3. `POST /replay` junta os chunks de antes + 5s depois do clique em um mp4 (duração por esporte: futsal/futebol 60s, basket 45s, padel 30s)
@@ -94,19 +94,20 @@ Endpoints (porta `3000` por padrão):
 | --- | --- |
 | `GET /health` | Liveness: `{"ok": true}`. |
 | `GET /status` | Estado do ingest, chunks em disco e se o stream está ao vivo. |
-| `POST /replay` | Corta a janela do lance e gera `replay_<timestamp>.mp4` e `.jpg` em `output/`. |
+| `POST /replay/:courtId` | Dispara todas as câmeras da quadra (um momento, com um replay por ângulo): cada uma corta a janela do lance e sobe o seu `.mp4` e `.jpg` (`output/{courtId}/{cameraId}/` se o upload falha). `POST /replay` só com uma quadra. |
 
 Principais variáveis (`.env`, defaults em `edge-server/src/config.ts`):
 
 | Variável | Default | |
 | --- | --- | --- |
 | `INGEST_MODE` | `rtmp` | `rtmp` (POC) ou `external` (câmera RTSP) |
-| `INPUT_URL` | `rtmp://127.0.0.1:1935/live/stream` | Fonte do stream |
-| `SPORT` | vazio | `futsal`, `futebol` (60s), `basket` (45s) ou `padel` (30s): define a duração do replay; outro valor não sobe |
+| `CAMERAS_FILE` | `./cameras.json` | Lista de câmeras (uma ou mais por quadra: `courtId`, `cameraId`, `sport`, `inputUrl`); modelo em `cameras.example.json`. Sem o arquivo, vale uma câmera só via `COURT_ID`/`SPORT`/`INPUT_URL` |
+| `INPUT_URL` | `rtmp://127.0.0.1:1935/live/stream` | Fonte do stream (modo de uma câmera) |
+| `SPORT` | vazio | (modo de uma câmera; no `cameras.json` é o `sport` de cada uma) `futsal`, `futebol` (60s), `basket` (45s) ou `padel` (30s): define a duração do replay; outro valor não sobe |
 | `REPLAY_POST_ROLL_SECONDS` | `5` | Parte "depois do clique" (o resto da duração é "antes") |
 | `CHUNK_WINDOW_SECONDS` | `90` | Quanto de vídeo fica em disco |
 | `SPRITE_FRAMES` | `12` | Frames do spritesheet (`0` desliga) |
-| `CLOUD_UPLOAD_URL` | vazio | Destino do upload (hoje um stub) |
+| `WEB_SERVER_URL` / `EDGE_API_KEY` / `VENUE_ID` | vazio | Upload pro web-server: URL, chave do lugar (gerada no admin) e id do lugar. Sem eles o replay fica só local |
 
 A câmera (ou o app de teste) precisa ter **keyframe a cada 1–2s**, senão os
 chunks saem maiores que o esperado. Detalhes, troubleshooting e recomendação de

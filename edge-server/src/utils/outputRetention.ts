@@ -4,11 +4,13 @@ import { config } from '../config';
 
 // So sobra arquivo em OUTPUT_DIR quando o upload pro cloud falha (upload OK
 // apaga o .mp4 e o .jpg locais na hora, ver routes/replay.ts). Isso aqui e so
-// um teto pra esse acumulo de falhas nao crescer sem limite.
-export function enforceOutputRetention(): void {
+// um teto pra esse acumulo de falhas nao crescer sem limite. Roda por camera
+// (cada uma tem a sua output/{courtId}), pra uma quadra com upload falhando nao
+// expulsar os arquivos de retry de outra.
+export function enforceOutputRetention(outputDir: string): void {
   let files: string[];
   try {
-    files = fs.readdirSync(config.outputDir);
+    files = fs.readdirSync(outputDir);
   } catch {
     return;
   }
@@ -19,7 +21,7 @@ export function enforceOutputRetention(): void {
     const sorted = files
       .filter((name) => name.endsWith(ext))
       .map((name) => {
-        const fullPath = path.join(config.outputDir, name);
+        const fullPath = path.join(outputDir, name);
         return { fullPath, mtimeMs: fs.statSync(fullPath).mtimeMs };
       })
       .sort((a, b) => b.mtimeMs - a.mtimeMs); // mais novo primeiro

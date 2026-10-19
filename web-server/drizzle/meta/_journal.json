@@ -36,6 +36,13 @@
       "when": 1792423754195,
       "tag": "0004_venues_courts",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792426018673,
+      "tag": "0005_replay_cameras",
+      "breakpoints": true
     }
   ]
 }

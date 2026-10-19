@@ -1,5 +1,5 @@
 import express from 'express';
-import { config } from './config';
+import { cameraKey, config } from './config';
 import { Segmenter } from './ingest/segmenter';
 import { startRtmpIngest } from './ingest/rtmpServer';
 import { replayRouter } from './routes/replay';
@@ -9,21 +9,29 @@ if (config.ingestMode === 'rtmp') {
   startRtmpIngest();
 }
 
-const segmenter = new Segmenter();
-segmenter.start();
+// Um Segmenter (e um ffmpeg) por camera, indexados por quadra/camera.
+const segmenters = new Map<string, Segmenter>();
+for (const camera of config.cameras) {
+  const segmenter = new Segmenter(camera);
+  segmenters.set(cameraKey(camera), segmenter);
+  segmenter.start();
+}
 
 const app = express();
-app.use(buildStatusRouter(segmenter));
+app.use(buildStatusRouter(segmenters));
 app.use(replayRouter);
 
 app.listen(config.port, () => {
   console.log(`[edge-server] API ouvindo na porta ${config.port}`);
-  console.log(`[edge-server] modo de ingestao: ${config.ingestMode}, input: ${config.inputUrl}`);
+  console.log(
+    `[edge-server] modo de ingestao: ${config.ingestMode}, ${config.cameras.length} camera(s): ` +
+    config.cameras.map((camera) => cameraKey(camera)).join(', '),
+  );
 });
 
 function shutdown(): void {
   console.log('[edge-server] encerrando...');
-  segmenter.stop();
+  for (const segmenter of segmenters.values()) segmenter.stop();
   process.exit(0);
 }
 

@@ -37,7 +37,8 @@ replay/          # pasta local do repo; o produto se chama Press2Replay
 ### 1. Edge server (`edge-server/`, Raspberry Pi)
 
 Responsabilidades:
-- Receber o stream de vídeo da câmera. Na POC a fonte é um celular dando push
+- Receber o stream de vídeo de uma ou mais câmeras (uma ou mais por quadra; ver
+  "Várias câmeras num edge" em Estado atual). Na POC a fonte é um celular dando push
   via RTMP (app de teste, **fora deste repo**); a câmera real (RTSP) deve
   passar a ser usada nos próximos dias — só muda `INGEST_MODE`/`INPUT_URL`.
 - Gravar o stream em **chunks curtos** (~1 segundo) em disco, mantendo uma
@@ -135,8 +136,28 @@ Pontos em aberto:
     "Replays no web-server" abaixo): mp4 + spritesheet direto pro Vercel Blob,
     depois registro no web-server. Config: `WEB_SERVER_URL`, `EDGE_API_KEY`
     (chave do LOCAL, gerada no admin), `VENUE_ID`, `COURT_ID`, `SPORT` (sem
-    eles o replay fica só local). Hoje o edge ingere **uma** câmera/quadra
-    (um `COURT_ID`); um edge com várias câmeras ainda não existe (ver Falta).
+    eles o replay fica só local).
+  - **Várias câmeras num edge** (uma ou mais por quadra): lista em
+    `cameras.json` (`courtId` = id da quadra no admin, `cameraId` = a câmera/
+    ângulo dentro da quadra, `sport`, `inputUrl` opcional no modo rtmp; modelo em
+    `cameras.example.json`, no `.gitignore` por ter senhas RTSP). `cameraId` é
+    opcional só em quadra de uma câmera (vira `main`); com mais de uma todas
+    precisam dele e o `sport` é um só por quadra. Chave RTMP: `{courtId}` sem
+    `cameraId`, `{courtId}.{cameraId}` com ele. Sem o arquivo, uma câmera só via
+    `COURT_ID`/`SPORT`/`INPUT_URL` (como antes). Cada câmera tem o seu
+    `Segmenter`/ffmpeg, `chunks/{courtId}/{cameraId}`, `output/{courtId}/
+    {cameraId}` e janela (pré/pós-roll pelo esporte). **Um aperto do botão é um
+    momento**: `POST /replay/:courtId` dispara todas as câmeras da quadra (mesmo
+    instante de clique, em paralelo, um `momentId` UUID), cada uma sobe e registra
+    o seu replay; 200 se ao menos uma câmera gerou (as falhas vêm listadas), 503
+    só se todas estavam paradas, 500 nos outros casos, 404 se não há câmera;
+    `POST /replay` só com uma quadra, senão 400. `GET /status` devolve
+    `{ cameras: [...] }` e há `/status/:courtId`. Config inválida derruba o boot.
+    Câmeras ficam **só no edge** (sem cadastro no admin: o `cameraId` só tem o
+    formato conferido, um typo cria um ângulo "fantasma"; o `sport` do edge é o que
+    vai no replay). Testado com 2 câmeras na mesma quadra + 1 em outra, botões em
+    paralelo, falha parcial e total. Custo: cada replay decodifica um vídeo pro
+    spritesheet, sem fila (um aperto numa quadra de N câmeras decodifica N juntos).
     Upload confirmado apaga o `.mp4` e o `.jpg` locais na hora; falha mantém
     os arquivos com um teto de retenção (`OUTPUT_RETENTION_COUNT`).
   - Janela de retenção dos chunks (`CHUNK_WINDOW_SECONDS`) reduzida pra 90s
@@ -186,28 +207,34 @@ Pontos em aberto:
     - **Storage**: Vercel Blob, store **privado** (criar em Storage > Blob >
       Private; `BLOB_READ_WRITE_TOKEN` em dev, OIDC na Vercel). Só
       `src/lib/storage.ts` importa o SDK. O banco guarda só os pathnames
-      (`replays/{venueId}/{courtId}/{replayId}.mp4|.jpg`), nunca URLs.
+      (`replays/{venueId}/{courtId}/{cameraId}/{replayId}.mp4|.jpg`; replays de antes das câmeras têm o caminho antigo, sem `cameraId`, guardado na linha), nunca URLs.
     - **Upload (só do edge)**: `POST /api/edge/upload` emite tokens de upload
       direto pro Blob e só emite se a chave é do place do pathname **e** a
       quadra existe nele (valida também tipo/tamanho); depois
       `POST /api/edge/replays` confere o `venueId` do corpo contra a chave, que
       a quadra existe e que os arquivos estão no storage, e cria a linha em
-      `replay` (`venueId`, `courtId`, `sport`, sprite, `expiresAt`). `sport` é
+      `replay` (`venueId`, `courtId`, `cameraId`, `momentId`, `sport`, sprite, `expiresAt`). `sport` é
       o do edge (com o qual ele cortou o vídeo); o esporte padrão da quadra é
       informativo.
     - **Jogador**: `/replays/[venueId]/[courtId]` (pública, destino do QR fixo
       do botão; 404 se o place/quadra não existe no admin) lista os replays
       ainda dentro do TTL (2h, `REPLAY_TTL_MINUTES`), com chips do esporte e do
-      nome da quadra, preview por spritesheet e botão baixar. Os arquivos só
+      nome da quadra. Um card por **momento** (`groupMoments` em
+      `src/lib/moments.ts`, mais novo primeiro): se a quadra tem mais de uma
+      câmera aparece um seletor de ângulo (rotulado pelo `cameraId`) sobre o
+      mesmo card (preview por spritesheet + botão baixar do ângulo escolhido); o
+      admin do place agrupa igual. A hora mostrada é a mais cedo do momento. Os
+      arquivos só
       saem por `/api/replays/[id]/video|sprite` (stream via `get()`, vídeo como
       `attachment`), que checa `expiresAt` a cada request.
     - **Expiração**: a fonte da verdade é `replay.expiresAt` (listagem e
       download). O cron diário `/api/cron/purge` (`vercel.json`; Hobby só
       permite 1x/dia) só apaga storage + linhas expirados e objetos órfãos;
       exige `CRON_SECRET`.
-  - Falta: criar funcionários (admin), QR por quadra no admin, edge com várias
-    câmeras (um segmenter por câmera, `POST /replay/:courtId`, esporte por
-    quadra), hotsite.
+  - Falta: criar funcionários (admin), QR por quadra no admin, edge ler do
+    admin a lista de quadras/esportes (hoje o `cameras.json` repete o esporte),
+    mais de uma câmera por quadra (exigiria `cameraId` no storage e no
+    replay), hotsite.
 - **Raspberry Pi 4 Model B**: ainda a preparar (gravar SD de 32GB, instalar
   Node/ffmpeg, serviço, IP fixo).
 - Este documento deve ser atualizado conforme decisões técnicas forem tomadas.

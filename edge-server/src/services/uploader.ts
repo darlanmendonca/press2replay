@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import { upload } from '@vercel/blob/client';
-import { config } from '../config';
+import { config, Camera, ID_PATTERN } from '../config';
 import type { ReplayResult } from './replayBuilder';
 
 export interface UploadResult {
@@ -9,8 +9,6 @@ export interface UploadResult {
   reason?: string;
   replayId?: string;
 }
-
-const ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 
 // Envia o replay pro web-server em dois passos:
 //   1. mp4 (e spritesheet) vao DIRETO pro Vercel Blob, com um token emitido por
@@ -21,10 +19,11 @@ const ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 // O replayId e gerado aqui e faz parte do caminho no storage, entao um retry do
 // passo 2 e idempotente. Falha em qualquer ponto -> uploaded=false e os
 // arquivos ficam em OUTPUT_DIR (ver outputRetention).
-export async function uploadToCloud(replay: ReplayResult): Promise<UploadResult> {
-  const { webServerUrl, edgeApiKey, venueId, courtId, sport } = config;
+export async function uploadToCloud(replay: ReplayResult, camera: Camera, momentId: string): Promise<UploadResult> {
+  const { webServerUrl, edgeApiKey, venueId } = config;
+  const { courtId, cameraId, sport } = camera;
   if (!webServerUrl || !edgeApiKey || !venueId || !courtId || !sport) {
-    console.log('[uploader] WEB_SERVER_URL/EDGE_API_KEY/VENUE_ID/COURT_ID/SPORT nao configurados, mantendo replay so local');
+    console.log(`[uploader] WEB_SERVER_URL/EDGE_API_KEY/VENUE_ID e courtId/esporte da camera nao configurados (quadra "${courtId}"), mantendo replay so local`);
     return { uploaded: false, reason: 'cloud_not_configured' };
   }
   if (!ID_PATTERN.test(venueId) || !ID_PATTERN.test(courtId)) {
@@ -40,7 +39,7 @@ export async function uploadToCloud(replay: ReplayResult): Promise<UploadResult>
   };
 
   try {
-    const base = `replays/${venueId}/${courtId}/${replayId}`;
+    const base = `replays/${venueId}/${courtId}/${cameraId}/${replayId}`;
     await upload(`${base}.mp4`, await fs.openAsBlob(replay.outputPath), {
       ...putOptions,
       contentType: 'video/mp4',
@@ -66,8 +65,10 @@ export async function uploadToCloud(replay: ReplayResult): Promise<UploadResult>
       headers: { ...auth, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         replayId,
+        momentId,
         venueId,
         courtId,
+        cameraId,
         sport,
         durationSeconds: Math.round(replay.approxDurationSeconds),
         sprite,

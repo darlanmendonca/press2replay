@@ -33,7 +33,7 @@ export async function GET(_request: NextRequest, ctx: RouteContext<"/api/replays
     "X-Content-Type-Options": "nosniff",
   };
   if (asset === "video") {
-    headers["Content-Disposition"] = `attachment; filename="replay-${row.venueId}-${row.courtId}-${id.slice(0, 8)}.mp4"`;
+    headers["Content-Disposition"] = `attachment; filename="replay-${row.venueId}-${row.courtId}-${row.cameraId}-${id.slice(0, 8)}.mp4"`;
     headers["Cache-Control"] = "private, no-store";
   } else {
     // O sprite nunca muda e a pagina o repete a cada visita: cache no browser

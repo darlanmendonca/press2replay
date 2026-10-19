@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { connection } from "next/server";
-import { ReplayCard } from "@/components/replay-card";
+import { MomentCard } from "@/components/moment-card";
+import { groupMoments, momentCardProps } from "@/lib/moments";
 import { REPLAY_TTL_MINUTES } from "@/lib/replays";
 import { requireAdmin } from "@/lib/session";
 import { ID_PATTERN } from "@/lib/storage";
@@ -39,9 +40,10 @@ async function VenueContent({ params }: Pick<PageProps<"/admin/places/[venueId]"
   await connection(); // a lista de replays depende da hora atual (janela de expiracao)
   const [courts, replays] = await Promise.all([listCourts(venueId), listVenueReplays(venueId)]);
 
-  // Replays agrupados por quadra, na ordem das quadras.
+  // Momentos (um aperto do botao, com um replay por camera) por quadra, na ordem
+  // das quadras.
   const byCourt = courts
-    .map((c) => ({ court: c, items: replays.filter((r) => r.courtId === c.id) }))
+    .map((c) => ({ court: c, items: groupMoments(replays.filter((r) => r.courtId === c.id)) }))
     .filter((g) => g.items.length > 0);
 
   return (
@@ -109,18 +111,9 @@ async function VenueContent({ params }: Pick<PageProps<"/admin/places/[venueId]"
                 </span>
               </h3>
               <ul className="grid gap-6 sm:grid-cols-2">
-                {items.map((r) => (
-                  <li key={r.id}>
-                    <ReplayCard
-                      id={r.id}
-                      createdAt={r.createdAt.toISOString()}
-                      durationSeconds={r.durationSeconds}
-                      sprite={
-                        r.spritePath && r.spriteFrames && r.spriteColumns
-                          ? { frames: r.spriteFrames, columns: r.spriteColumns }
-                          : null
-                      }
-                    />
+                {items.map((moment) => (
+                  <li key={moment.id}>
+                    <MomentCard {...momentCardProps(moment)} />
                   </li>
                 ))}
               </ul>

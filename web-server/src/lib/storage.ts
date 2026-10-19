@@ -8,20 +8,22 @@ import { BlobNotFoundError, del, get, head, list } from "@vercel/blob";
 
 export const REPLAYS_PREFIX = "replays/";
 
-// venueId e courtId vem do edge (autenticado) e da URL publica, e viram parte
-// do caminho no storage: so letras, numeros, - e _.
+// venueId, courtId e cameraId vem do edge (autenticado) e da URL publica, e
+// viram parte do caminho no storage: so letras, numeros, - e _.
 export const ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 const REPLAY_ID_PATTERN = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 export const UPLOAD_PATHNAME_PATTERN = new RegExp(
-  `^${REPLAYS_PREFIX}([A-Za-z0-9_-]{1,64})/([A-Za-z0-9_-]{1,64})/(${REPLAY_ID_PATTERN})\\.(mp4|jpg)$`,
+  `^${REPLAYS_PREFIX}([A-Za-z0-9_-]{1,64})/([A-Za-z0-9_-]{1,64})/([A-Za-z0-9_-]{1,64})/(${REPLAY_ID_PATTERN})\\.(mp4|jpg)$`,
 );
 
-export function videoPathname(venueId: string, courtId: string, replayId: string) {
-  return `${REPLAYS_PREFIX}${venueId}/${courtId}/${replayId}.mp4`;
+// Replays registrados antes das cameras ficam em replays/{lugar}/{quadra}/{id}
+// (o caminho antigo esta guardado na linha): so os novos usam o segmento da camera.
+export function videoPathname(venueId: string, courtId: string, cameraId: string, replayId: string) {
+  return `${REPLAYS_PREFIX}${venueId}/${courtId}/${cameraId}/${replayId}.mp4`;
 }
 
-export function spritePathname(venueId: string, courtId: string, replayId: string) {
-  return `${REPLAYS_PREFIX}${venueId}/${courtId}/${replayId}.jpg`;
+export function spritePathname(venueId: string, courtId: string, cameraId: string, replayId: string) {
+  return `${REPLAYS_PREFIX}${venueId}/${courtId}/${cameraId}/${replayId}.jpg`;
 }
 
 // Metadados do objeto, ou null se ele nao existe.

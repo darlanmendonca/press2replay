@@ -12,8 +12,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
-    "sim:camera": "ffmpeg -re -f lavfi -i \"testsrc=size=1280x720:rate=30\" -f lavfi -i \"sine=frequency=1000\" -c:v libx264 -preset ultrafast -pix_fmt yuv420p -g 30 -keyint_min 30 -sc_threshold 0 -c:a aac -f flv rtmp://127.0.0.1:1935/live/stream",
-    "sim:button": "curl -sS -X POST http://localhost:3000/replay"
+    "sim:camera": "ffmpeg -re -f lavfi -i \"${PATTERN:-testsrc}=size=1280x720:rate=30\" -f lavfi -i \"sine=frequency=${TONE:-1000}\" -c:v libx264 -preset ultrafast -pix_fmt yuv420p -g 30 -keyint_min 30 -sc_threshold 0 -c:a aac -f flv rtmp://127.0.0.1:1935/live/${COURT:-stream}${CAMERA:+.$CAMERA}",
+    "sim:button": "curl -sS -X POST http://localhost:3000/replay${COURT:+/$COURT}"
   },
   "dependencies": {
     "@vercel/blob": "^2.8.2",

@@ -14,10 +14,12 @@ function positiveInt(value: unknown) {
 }
 
 // Segundo passo do envio do edge: depois de subir o mp4 (e o sprite) direto
-// pro Blob, ele registra o replay aqui. O local vem da CHAVE (o venueId do corpo
-// so e conferido contra ela), a quadra tem de existir nesse local, os caminhos
-// no storage sao derivados de venueId + courtId + replayId (nao vem do
-// cliente) e a existencia dos arquivos e confirmada antes de criar a linha.
+// pro Blob, ele registra o replay aqui (um por camera; as cameras da mesma
+// quadra compartilham o `momentId` de um aperto do botao). O local vem da CHAVE
+// (o venueId do corpo so e conferido contra ela), a quadra tem de existir nesse
+// local, os caminhos no storage sao derivados de venueId + courtId + cameraId +
+// replayId (nao vem do cliente) e a existencia dos arquivos e confirmada antes
+// de criar a linha.
 export async function POST(request: Request) {
   const edge = await authenticateEdge(request);
   if (!edge) {
@@ -28,11 +30,13 @@ export async function POST(request: Request) {
   const id = typeof body?.replayId === "string" && UUID.test(body.replayId) ? body.replayId : null;
   const venueId = typeof body?.venueId === "string" && ID_PATTERN.test(body.venueId) ? body.venueId : null;
   const courtId = typeof body?.courtId === "string" && ID_PATTERN.test(body.courtId) ? body.courtId : null;
+  const cameraId = typeof body?.cameraId === "string" && ID_PATTERN.test(body.cameraId) ? body.cameraId : null;
+  const momentId = typeof body?.momentId === "string" && UUID.test(body.momentId) ? body.momentId : null;
   const sport = parseSport(body?.sport);
-  if (!body || !id || !venueId || !courtId || !sport) {
+  if (!body || !id || !venueId || !courtId || !cameraId || !momentId || !sport) {
     return NextResponse.json(
       {
-        error: `replayId, venueId, courtId e sport sao obrigatorios (e validos; sport: ${SPORTS.join(", ")})`,
+        error: `replayId, momentId, venueId, courtId, cameraId e sport sao obrigatorios (e validos; sport: ${SPORTS.join(", ")})`,
       },
       { status: 400 },
     );
@@ -44,7 +48,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "quadra nao encontrada neste local" }, { status: 404 });
   }
 
-  const videoPath = videoPathname(venueId, courtId, id);
+  const videoPath = videoPathname(venueId, courtId, cameraId, id);
   const video = await statObject(videoPath);
   if (!video) {
     return NextResponse.json({ error: "video nao encontrado no storage" }, { status: 422 });
@@ -58,7 +62,7 @@ export async function POST(request: Request) {
     const sprite = body.sprite as Record<string, unknown>;
     spriteFrames = positiveInt(sprite.frames);
     spriteColumns = positiveInt(sprite.columns);
-    const path = spritePathname(venueId, courtId, id);
+    const path = spritePathname(venueId, courtId, cameraId, id);
     if (spriteFrames && spriteColumns && (await statObject(path))) spritePath = path;
     else spriteFrames = spriteColumns = null;
   }
@@ -70,6 +74,8 @@ export async function POST(request: Request) {
       id,
       venueId,
       courtId,
+      cameraId,
+      momentId,
       sport,
       videoPath,
       spritePath,

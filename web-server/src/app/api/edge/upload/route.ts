@@ -26,8 +26,9 @@ export async function POST(request: Request) {
 
         const match = UPLOAD_PATHNAME_PATTERN.exec(pathname);
         if (!match) throw new Error("pathname invalido");
-        const [, venueId, courtId, , extension] = match;
-        // A chave so vale pro proprio local e so pra quadras que existem nele.
+        const [, venueId, courtId, , , extension] = match;
+        // A chave so vale pro proprio local e so pra quadras que existem nele
+        // (o cameraId so tem o formato conferido: nao ha tabela de cameras).
         if (venueId !== edge.venueId) throw new Error("forbidden");
         if (!(await getCourt(venueId, courtId))) throw new Error("quadra nao encontrada");
         const isVideo = extension === "mp4";
