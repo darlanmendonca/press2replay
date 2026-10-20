@@ -26,6 +26,9 @@ export const auth = betterAuth({
     enabled: true,
     disableSignUp: true,
   },
+  // O mesmo deployment responde no dominio proprio e no *.vercel.app: aceita os
+  // dois pra o login nao falhar por origem diferente do BETTER_AUTH_URL.
+  trustedOrigins: ["https://press2replay.com", "https://press2replay.vercel.app"],
   advanced: {
     database: { generateId: () => crypto.randomUUID() },
   },
