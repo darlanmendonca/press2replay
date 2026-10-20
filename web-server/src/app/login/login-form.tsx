@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { track } from "@vercel/analytics";
 import { authClient } from "@/lib/auth-client";
 
 export function LoginForm() {
@@ -20,9 +21,11 @@ export function LoginForm() {
     });
     setPending(false);
     if (error) {
+      track("login_failed");
       setError("E-mail ou senha incorretos.");
       return;
     }
+    track("login");
     router.push("/admin");
     router.refresh();
   }

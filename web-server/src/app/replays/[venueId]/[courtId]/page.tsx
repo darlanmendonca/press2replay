@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { MomentCard } from "@/components/moment-card";
+import { TrackOnMount } from "@/components/track-on-mount";
 import { groupMoments, momentCardProps } from "@/lib/moments";
 import { listRecentReplays, REPLAY_TTL_MINUTES } from "@/lib/replays";
 import { ID_PATTERN } from "@/lib/storage";
@@ -38,6 +39,10 @@ async function CourtReplays({
 
   return (
     <>
+      <TrackOnMount
+        event="replays_page_open"
+        properties={{ venueId, courtId, sport: court.sport, replays: replays.length }}
+      />
       <h1 className="mt-6 text-3xl font-extrabold">Replays</h1>
       <ul className="mt-3 flex flex-wrap gap-2">
         {[court.sport, court.name].map((label, i) => (

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { track } from "@vercel/analytics";
 
 const PLAY_INTERVAL_MS = 450;
 
@@ -49,6 +50,7 @@ export function ReplayCard({
         <a
           href={`/api/replays/${id}/video`}
           download
+          onClick={() => track("replay_download", { replayId: id })}
           className="rounded-full bg-brand px-4 py-2 text-sm font-bold text-bg transition-opacity hover:opacity-90"
         >
           Baixar
@@ -87,8 +89,17 @@ function SpritePreview({ id, sprite }: { id: string; sprite: Sprite }) {
   const col = frame % columns;
   const row = Math.floor(frame / columns);
 
+  // Um evento por replay e por visita: mexer no preview varias vezes nao inflaciona a contagem.
+  const tracked = useRef(false);
+  function trackPreview(action: "scrub" | "play") {
+    if (tracked.current) return;
+    tracked.current = true;
+    track("replay_preview", { replayId: id, action });
+  }
+
   function scrub(event: React.PointerEvent<HTMLDivElement>) {
     if (playing) return; // enquanto toca, o arrastar nao disputa o frame com o play
+    trackPreview("scrub");
     const box = event.currentTarget.getBoundingClientRect();
     const ratio = Math.min(Math.max((event.clientX - box.left) / box.width, 0), 0.999);
     setFrame(Math.floor(ratio * frames));
@@ -110,7 +121,10 @@ function SpritePreview({ id, sprite }: { id: string; sprite: Sprite }) {
       />
       <button
         type="button"
-        onClick={() => setPlaying((p) => !p)}
+        onClick={() => {
+          trackPreview("play");
+          setPlaying((p) => !p);
+        }}
         aria-label={playing ? "Pausar pré-visualização" : "Reproduzir pré-visualização"}
         aria-pressed={playing}
         className="absolute left-3 top-3 flex size-10 items-center justify-center rounded-full bg-brand text-bg transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
