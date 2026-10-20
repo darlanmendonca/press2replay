@@ -378,6 +378,40 @@ Depois de ligar, o edge precisa de ~30 a 60 s a gravar para ter um replay comple
 chunks estão em RAM). Desliga sempre com `sudo shutdown now` e espera o LED verde parar, em
 vez de tirar a ficha.
 
+## Desligar e proteger o cartão
+
+Puxar da tomada não estraga o Pi à primeira, mas se o corte apanhar o cartão a meio de uma
+escrita o sistema de ficheiros pode corromper-se e o Pi deixar de arrancar. O Raspberry Pi
+OS (ext4 com journal) aguenta bem a maioria dos cortes, e o edge já ajuda porque os chunks
+de vídeo ficam em RAM e não no cartão. No cliente, na prática, alguém vai puxar a ficha:
+prepara o Pi para isso.
+
+**Desligar à mão** (por SSH): `sudo shutdown now` e esperar o LED verde parar antes de tirar
+a ficha. Reiniciar: `sudo reboot`.
+
+Da medida mais importante para a menos:
+
+1. **Cartão *high endurance* ou SSD por USB.** Aguenta melhor as escritas e os cortes. É o
+   que mais pesa.
+2. **Botão de desligar físico** (opcional, barato). Liga um botão entre o GPIO3 (pino 5) e o
+   GND (pino 6) e acrescenta ao `/boot/firmware/config.txt`:
+   ```
+   dtoverlay=gpio-shutdown
+   ```
+   Depois de reiniciar, um toque no botão desliga o Pi com segurança e outro toque volta a
+   ligá-lo. Diz ao cliente para usar o botão em vez de puxar a ficha.
+3. **Sistema só de leitura (overlay filesystem).** `sudo raspi-config` → *Performance
+   Options* → *Overlay File System*. Com o cartão só de leitura, um corte de energia não
+   corrompe nada. O custo é que as alterações **não persistem** (o `git pull` do update
+   automático, o `edge.env`, o `cameras.json`), por isso só se ativa no fim, com tudo
+   estável. Para alterar algo, desativa o overlay, mexe e volta a ativar. É a versão
+   definitiva para clientes.
+4. **UPS HAT** (bateria). Garante o desligamento limpo se faltar luz. Só compensa onde a
+   energia falha muito.
+
+Recomendado por defeito: o ponto 1 em todos os Pis, mais o aviso ao cliente (e o botão, se o
+instalares). O overlay (ponto 3) fica para quando o sistema estiver estável.
+
 ## Problemas comuns
 
 | Sintoma | Causa provável |
