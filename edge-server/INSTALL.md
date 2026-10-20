@@ -290,6 +290,17 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now press2replay-update.timer
 ```
 
+Para forçar já uma atualização: `sudo /usr/local/sbin/p2r-update`. **Espera o prompt
+voltar** (até ~45 s: compila e verifica o arranque 20 s). Se o interromperes com
+`Ctrl+C` a meio, o código novo já foi puxado mas o rollback não corre, e as execuções
+seguintes saem em silêncio por acharem que já está atualizado. Para repor:
+`sudo -u press2replay git -C /opt/press2replay reset --hard <commit bom>`, `npm run build`
+e `sudo systemctl restart press2replay`.
+
+Testado: commit bom (compila, reinicia, `ok`), commit que compila mas não arranca
+(`FALHOU`, volta ao anterior, edge continua de pé), o mesmo commit mau não é repetido, e
+um commit sem mudanças em `edge-server/` não reinicia o serviço.
+
 Para controlar **quando** atualiza (o reinício apaga a janela de chunks), troca
 `OnUnitActiveSec=10min` por `OnCalendar=*-*-* 04:00:00` (4 h da manhã).
 
@@ -303,12 +314,69 @@ curl -s localhost:3000/health                     # {"ok":true}
 curl -s localhost:3000/status | python3 -m json.tool   # chunks.live = true por câmera
 journalctl -u press2replay -f                     # logs ao vivo
 journalctl -u press2replay-update                 # histórico das atualizações
-git -C /opt/press2replay rev-parse --short HEAD   # versão que está a correr
+sudo -u press2replay git -C /opt/press2replay rev-parse --short HEAD   # versão que está a correr (como press2replay, senão o git recusa: "dubious ownership")
 vcgencmd measure_temp                             # temperatura do Pi
 ```
 
 Teste de ponta a ponta: carrega no botão (ou `curl -X POST localhost:3000/replay`) e
 confirma que o replay aparece em `<WEB_SERVER_URL>/replays/<VENUE_ID>/<COURT_ID>`.
+
+## Preparar o Pi para o local do cliente
+
+O Pi chega ao cliente já instalado (passos 1 a 11) e só precisa de se ligar à rede de lá.
+O NetworkManager guarda várias redes e liga-se à que estiver ao alcance, por isso a tua
+rede de casa pode ficar guardada sem atrapalhar.
+
+### Antes de sair: acrescentar o Wi-Fi do cliente (recomendado)
+
+Pede ao cliente o **nome (SSID) e a senha** da rede e acrescenta-a por SSH, **sem a
+ativar** (ativar derrubava o SSH). É o comando do passo 3:
+
+```bash
+sudo nmcli connection add type wifi con-name cliente-<local> \
+  ssid "NOME_DA_REDE" wifi-sec.key-mgmt wpa-psk wifi-sec.psk "SENHA" \
+  connection.autoconnect yes
+sudo raspi-config nonint do_wifi_country PT
+nmcli connection show        # confirma que a rede nova aparece na lista
+```
+
+No local, a tua rede de casa não está ao alcance e o Pi liga-se à do cliente sozinho.
+
+### Já no cliente, se o Pi não se ligar: hotspot com o nome da tua rede de casa
+
+Cria no telemóvel um **hotspot com o mesmo nome e a mesma senha do Wi-Fi da tua casa**. O
+Pi reconhece-o como uma rede já guardada e liga-se. Entra por SSH (pelo IP que o telemóvel
+mostrar, ou `p2r-edge-<local>.local`), acrescenta a rede do cliente com o comando acima e
+reinicia (`sudo reboot`).
+
+### Outras vias
+
+- **Por cabo:** liga o Pi ao router do cliente e entra por SSH. É também a melhor ligação
+  para a gravação contínua.
+- **Tailscale:** se o Pi tiver internet por qualquer via, entras de qualquer lado
+  (`ssh <utilizador>@p2r-edge-<local>`).
+
+### Perguntar ao cliente antes
+
+- A rede tem **portal de login** (página de aceitar termos) ou **isolamento entre
+  dispositivos** (rede de convidados)? Nesses casos o Pi pode ficar sem internet, ou não
+  ver a câmera. Usa a rede principal.
+- A **câmera** vai na mesma rede que o Pi? Tem de ser.
+- Se a senha do Wi-Fi mudar, o Pi fica offline. Deixa, se possível, uma segunda rede de
+  reserva guardada e o Tailscale instalado para recuperares o acesso.
+
+### Antes de ir: confirmar que o Pi sobrevive a um reinício
+
+```bash
+sudo reboot
+# espera 1 a 2 minutos, volta a entrar e confirma:
+systemctl is-active press2replay press2replay-update.timer tailscaled
+curl -s localhost:3000/health
+```
+
+Depois de ligar, o edge precisa de ~30 a 60 s a gravar para ter um replay completo (os
+chunks estão em RAM). Desliga sempre com `sudo shutdown now` e espera o LED verde parar, em
+vez de tirar a ficha.
 
 ## Problemas comuns
 
