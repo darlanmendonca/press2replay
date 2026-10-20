@@ -5,9 +5,6 @@ import { startRtmpIngest } from './ingest/rtmpServer';
 import { replayRouter } from './routes/replay';
 import { buildStatusRouter } from './routes/status';
 
-// TEMPORARIO: teste de rollback do update automatico. Reverter logo a seguir.
-throw new Error('teste de rollback: este commit nao deve ficar a correr');
-
 if (config.ingestMode === 'rtmp') {
   startRtmpIngest();
 }
