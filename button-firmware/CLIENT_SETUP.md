@@ -29,7 +29,8 @@ Guia para ligar e configurar um botão num local. O botão chega já com o firmw
 1. **Liga o botão** ao carregador USB. O LED azul faz **dois piscares rápidos a cada 2
    segundos**: é o modo de configuração (porque ainda não tem configuração).
 2. No telemóvel, abre as definições de Wi-Fi e liga-te à rede **`P2R-Botao-XXXX`** (o
-   `XXXX` é diferente em cada botão). Não tem senha. O telemóvel pode avisar "sem internet":
+   `XXXX` são os 4 últimos dígitos do endereço MAC do ESP32, por isso é diferente em cada botão e é
+   o mesmo número que o router mostra na lista de dispositivos). Não tem senha. O telemóvel pode avisar "sem internet":
    mantém a ligação.
 3. A página de configuração **abre sozinha**. Se não abrir, abre o browser e vai a
    **`http://192.168.4.1`**.

@@ -146,7 +146,7 @@ void setup() {
   pinMode(BUTTON_PIN, INPUT_PULLUP);
   pinMode(LED_PIN, OUTPUT);
   delay(BOOT_SETTLE_MS);
-  Serial.println("p2r-button: a arrancar");
+  Serial.printf("p2r-button: a arrancar (id %s)\n", deviceId().c_str());
 
   const bool configured = loadConfig(config);
   if (!configured || heldAtBoot()) runPortal(config);

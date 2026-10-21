@@ -2,6 +2,7 @@
 #include <DNSServer.h>
 #include <WebServer.h>
 #include <WiFi.h>
+#include <esp_mac.h>
 
 namespace {
 
@@ -122,17 +123,22 @@ void redirectToPortal() {
 
 }  // namespace
 
+String deviceId() {
+  uint8_t mac[6];
+  esp_read_mac(mac, ESP_MAC_WIFI_STA);  // MAC de fabrica: nao precisa do Wi-Fi ligado
+  char id[5];
+  snprintf(id, sizeof(id), "%02X%02X", mac[4], mac[5]);
+  return String(id);
+}
+
 [[noreturn]] void runPortal(const Config& existing) {
   current = existing;
-  uint8_t mac[6];
-  WiFi.macAddress(mac);
-  char apName[24];
-  snprintf(apName, sizeof(apName), "P2R-Botao-%02X%02X", mac[4], mac[5]);
+  const String apName = "P2R-Botao-" + deviceId();
 
   WiFi.mode(WIFI_AP_STA);
   scanNetworks();
   WiFi.softAPConfig(AP_IP, AP_IP, IPAddress(255, 255, 255, 0));
-  WiFi.softAP(apName);
+  WiFi.softAP(apName.c_str());
   dns.start(53, "*", AP_IP);
 
   server.on("/", HTTP_GET, [] { server.send(200, "text/html; charset=utf-8", page()); });
@@ -140,7 +146,7 @@ void redirectToPortal() {
   server.onNotFound(redirectToPortal);
   server.begin();
 
-  Serial.printf("portal: rede \"%s\", abrir http://192.168.4.1\n", apName);
+  Serial.printf("portal: rede \"%s\", abrir http://192.168.4.1\n", apName.c_str());
 
   const uint32_t start = millis();
   while (millis() - start < PORTAL_TIMEOUT_MS) {
