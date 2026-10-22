@@ -1,4 +1,5 @@
 import { ContactForm } from "@/components/contact-form";
+import { Benefits } from "@/components/landing/benefits";
 import { Faq } from "@/components/landing/faq";
 import { HeroDemo } from "@/components/landing/hero-demo";
 import { DiscStack } from "@/components/landing/disc-stack";
@@ -11,6 +12,7 @@ import { Switches } from "@/components/landing/switches";
 
 const NAV = [
   { href: "#como-e", label: "Como funciona" },
+  { href: "#beneficios", label: "Benefícios" },
   { href: "#privacidade", label: "Privacidade" },
   { href: "#perguntas", label: "Perguntas" },
 ];
@@ -142,6 +144,13 @@ export default function Home() {
                 </DiscStack>
               </div>
             </div>
+          </div>
+        </section>
+
+        {/* Benefícios: para quem gere o campo */}
+        <section id="beneficios" className="scroll-mt-14 py-24 lg:py-40">
+          <div className={wrap}>
+            <Benefits />
           </div>
         </section>
 

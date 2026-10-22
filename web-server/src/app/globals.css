@@ -33,6 +33,10 @@
     animation: marquee 85s linear infinite;
   }
 
+  .reveal-in {
+    animation: reveal-in 500ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+
   .fan {
     animation: fan 900ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
   }
@@ -51,6 +55,13 @@
 @keyframes marquee {
   to {
     transform: translateX(-50%);
+  }
+}
+
+@keyframes reveal-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
   }
 }
 
@@ -74,6 +85,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .fan,
+  .reveal-in,
   .sports-track,
   .ping {
     animation: none !important;
