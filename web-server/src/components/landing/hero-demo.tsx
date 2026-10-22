@@ -9,7 +9,7 @@ import { ReplayFragment } from "./replay-fragment";
 const STEPS = [
   { name: "Jogas", text: "Estás em campo. As câmaras estão a ver, mas o jogo não é gravado." },
   { name: "Carregas", text: "Boa jogada? Alguém carrega no botão ao lado do campo para guardar o lance." },
-  { name: "Recebes o replay", text: "Em segundos, o replay da jogada (cerca de 30 s) chega ao teu telemóvel. Vês, descarregas, partilhas." },
+  { name: "Recebes o replay", text: "Em segundos, o replay da jogada, de 1 minuto e 30 segundos ou 1 minuto conforme o desporto, está pronto. Acedes pelo QR Code, assistes, descarregas e partilhas." },
 ];
 
 const BARS = 30;
@@ -88,7 +88,7 @@ export function HeroDemo() {
           </span>
         </button>
 
-        {/* os 30 segundos guardados */}
+        {/* o minuto guardado, em barras */}
         <div
           aria-hidden
           className="absolute bottom-[1%] left-[30%] flex h-[7%] w-[30%] items-end gap-[2px] max-sm:hidden"

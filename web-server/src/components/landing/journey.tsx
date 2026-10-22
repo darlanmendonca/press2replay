@@ -14,28 +14,28 @@ type Stage = {
 const STAGES: Stage[] = [
   {
     name: "No campo",
-    text: "Cada campo tem a sua página de replays, que abres pelo QR Code junto ao campo. Os replays do teu jogo vão aparecer lá.",
+    text: "Cada campo tem a sua página de replays, que abres pelo QR Code junto ao botão. Os replays do teu jogo vão aparecer lá.",
     tone: "bg-forest",
     ink: "text-fg",
     photo: { src: "/photos/botao-padel.jpg", alt: "Botão vermelho do press2replay numa placa junto a um campo de padel, com um jogador ao fundo", w: 1254, h: 1254, pos: "50% 50%" },
   },
   {
     name: "Jogas",
-    text: "As câmaras acompanham o campo, mas o jogo nunca é gravado na íntegra: fica apenas o último minuto, apagado continuamente. Tu só jogas.",
+    text: "As câmaras acompanham o campo, mas o jogo nunca é gravado na íntegra: só ficam os últimos instantes, apagados continuamente. Tu só jogas.",
     tone: "bg-leaf",
     ink: "text-fg",
     photo: { src: "/photos/padel-jogo.jpg", alt: "Quatro jogadores de padel num campo ao sol, com o jogador de amarelo a devolver a bola", w: 1254, h: 1254, pos: "50% 50%" },
   },
   {
     name: "Carregas",
-    text: "Boa jogada? Um jogador carrega no botão ao lado do campo e só esse momento é guardado, cerca de 30 segundos.",
+    text: "Boa jogada? Um jogador carrega no botão ao lado do campo e só esse momento é guardado: 1 minuto e 30 segundos ou 1 minuto, conforme o desporto.",
     tone: "bg-brand",
     ink: "text-bg",
     photo: { src: "/photos/carregar-botao.jpg", alt: "Jogador a carregar com a mão no botão vermelho do press2replay, numa placa junto ao campo de padel", w: 1254, h: 1254, pos: "50% 50%" },
   },
   {
     name: "Vês e partilhas",
-    text: "Durante a partida e pouco depois, abres a página do campo no telemóvel. Vês a lista de replays, descarregas e partilhas. Sem aplicação para instalar.",
+    text: "Durante a partida ou depois, abres a página do campo no telemóvel pelo QR Code. Vês a lista de replays, descarregas e partilhas. Sem aplicação para instalar. Fácil e rápido.",
     tone: "bg-mint",
     ink: "text-bg",
     photo: { src: "/photos/replays-telemovel.jpg", alt: "Jogador a segurar um telemóvel com a lista de replays do press2replay, num campo de padel", w: 1254, h: 1254, pos: "50% 50%" },

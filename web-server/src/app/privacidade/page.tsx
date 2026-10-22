@@ -41,9 +41,9 @@ export default function PrivacyPage() {
 
       <h2 className={h2}>Replays dos jogos</h2>
       <p className="mt-3">
-        As câmaras do campo não gravam o jogo na íntegra: só o último minuto fica em memória e é apagado continuamente.
-        Só os cerca de 30 segundos pedidos ao carregar no botão são guardados, sem som e sem reconhecimento facial, e
-        são apagados passado pouco tempo. Quem abrir a página de replays do campo nesse período pode ver os vídeos.
+        As câmaras do campo não gravam o jogo na íntegra: só os últimos instantes ficam em memória e são apagados continuamente.
+        Só o momento pedido ao carregar no botão, de 1 minuto e 30 segundos ou 1 minuto conforme o desporto, é guardado, sem som e sem reconhecimento facial, e
+        é apagado passado pouco tempo. Quem abrir a página de replays do campo nesse período pode ver os vídeos.
       </p>
 
       <h2 className={h2}>Com quem partilhamos</h2>

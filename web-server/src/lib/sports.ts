@@ -1,5 +1,6 @@
 // Esportes aceitos no replay. O edge-server tem a mesma lista (e a duracao de
-// cada um) em src/config.ts (SPORT_REPLAY_SECONDS) - manter as duas em sincronia.
+// cada um: 60s por padrao, padel 90s) em src/config.ts (SPORT_REPLAY_SECONDS) - manter as
+// duas em sincronia.
 export const SPORTS = ["futsal", "futebol", "padel", "basket"] as const;
 export type Sport = (typeof SPORTS)[number];
 

@@ -120,7 +120,7 @@ autenticação — mantenha o edge na rede local do lugar.
    próprio ffmpeg, sem ganho nenhum). O que faz sentido ajustar é o *valor*
    de `CHUNK_WINDOW_SECONDS`: só precisa de folga sobre
    `REPLAY_PRE_ROLL_SECONDS` (com `-c copy` o concat leva bem menos de 1s),
-   então 90s já é confortável para um pre-roll de 30s — não precisa ser um
+   então 120s já é confortável para o maior replay (90s no padel); o boot falha se a janela for curta — não precisa ser um
    valor grande "por segurança".
 4. A cada (re)início do `ffmpeg` (queda de stream, restart do processo), a
    pasta de chunks é limpa: cada sessão de stream começa "do zero", pra
@@ -130,8 +130,8 @@ autenticação — mantenha o edge na rede local do lugar.
    nem "exit" sozinha) o ffmpeg é morto e reiniciado.
 6. `POST /replay` corta uma janela **fixa** em torno do instante do clique:
    `REPLAY_PRE_ROLL_SECONDS` antes + `REPLAY_POST_ROLL_SECONDS` depois
-   (total por esporte, definido por `SPORT`: futsal/futebol 60s, basket 45s,
-   padel 30s, sempre com 5s de pós-roll; sem esporte, 30+5=35s) — não é "os últimos N segundos até agora", é uma janela
+   (total por esporte, definido por `SPORT`: 60s por padrão,
+   padel 90s, sempre com 5s de pós-roll; sem esporte, 30+5=35s) — não é "os últimos N segundos até agora", é uma janela
    ancorada no clique, com pedaço de antes e de depois do lance.
    - O pós-roll ainda nem aconteceu no instante do clique, então o endpoint
      **espera de verdade** (até `REPLAY_POST_ROLL_SECONDS` +
@@ -199,8 +199,7 @@ npm run typecheck
   pré/pós-roll. `GET /status/:courtId` devolve `{ courtId, cameras }` só da
   quadra (404 se não existe).
 - `POST /replay/:courtId` — gera o momento da quadra: cada câmera corta pré-roll
-  antes + `REPLAY_POST_ROLL_SECONDS` depois do clique (60/45/30s conforme o
-  esporte) e sobe o seu replay. Retorna o `momentId` e, por câmera, o arquivo e
+  antes + `REPLAY_POST_ROLL_SECONDS` depois do clique (60s, ou 90s no padel) e sobe o seu replay. Retorna o `momentId` e, por câmera, o arquivo e
   se o upload pro cloud rolou ou não. Demora pelo menos o pós-roll pra
   responder, de propósito (ver seção "Como funciona"). `503` se **todas** as
   câmeras da quadra estiverem paradas (uma só parada não impede o momento),
@@ -247,7 +246,7 @@ câmera sintética acima e `npm run sim:button` faz o `POST /replay` — é o
 `CAMERA`, na chave `1`) e `COURT=1 npm run sim:button` chama `/replay/1`, que
 dispara todos os ângulos da quadra; `PATTERN=testsrc2 TONE=440` muda a imagem e o
 som pra distinguir câmeras (todas com o seu `courtId`/`cameraId` no
-`cameras.json`). Deixe a câmera rodando o tempo do esporte (60s no futsal, 30s no padel) antes de apertar.
+`cameras.json`). Deixe a câmera rodando o tempo do esporte (60s no futsal, 90s no padel) antes de apertar.
 
 Com isso publicando, `GET /status` já deve mostrar chunks aparecendo (~1s
 cada) e `live: true`, e `POST /replay` deve gerar um `.mp4` em `output/`.
@@ -341,9 +340,9 @@ tamanho ≈ nº de câmeras × CHUNK_WINDOW_SECONDS × bitrate + replays em tran
 `output/{courtId}`: multiplique pelo número de câmeras. Os exemplos abaixo são
 **por câmera**.)
 
-Exemplos com `CHUNK_WINDOW_SECONDS=90`:
-- 1080p a 8 Mbps: ≈ **90 MB**
-- 4K a 25 Mbps: ≈ **280 MB**, mais ~190MB por replay 4K em processamento
+Exemplos com `CHUNK_WINDOW_SECONDS=120`:
+- 1080p a 8 Mbps: ≈ **120 MB**
+- 4K a 25 Mbps: ≈ **375 MB**, mais ~280MB por replay 4K de 90s em processamento
 
 Ou seja, a RAM (não o SSD) passa a ser o recurso a dimensionar — o que
 inclusive abre a possibilidade de **tirar o SSD da lista de compras** e usar
@@ -353,8 +352,8 @@ operacional, com pouquíssima escrita).
 Exemplo de `/etc/fstab` no Raspberry Pi (tamanho fixo, pra um pico não
 consumir toda a RAM do sistema):
 ```
-tmpfs /home/pi/replay/edge-server/chunks tmpfs rw,size=256M,nodev,nosuid 0 0
-tmpfs /home/pi/replay/edge-server/output tmpfs rw,size=256M,nodev,nosuid 0 0
+tmpfs /home/pi/replay/edge-server/chunks tmpfs rw,size=512M,nodev,nosuid 0 0
+tmpfs /home/pi/replay/edge-server/output tmpfs rw,size=512M,nodev,nosuid 0 0
 ```
 
 `CHUNKS_DIR`/`OUTPUT_DIR` no `.env` continuam apontando pra esses caminhos

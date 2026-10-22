@@ -142,7 +142,7 @@ sudo chown root:press2replay /etc/press2replay/edge.env && sudo chmod 640 /etc/p
 ```
 
 Os chunks ficam em `/run` (RAM): não desgastam o cartão, mas **perdem-se se o
-serviço reiniciar**, o que significa perder o pré-roll de uns segundos. Com 90 s de
+serviço reiniciar**, o que significa perder o pré-roll de uns segundos. Com 120 s de
 janela a RAM necessária é pequena, mas confirma com `df -h /run` se usares câmeras 4K.
 
 ## 8. Câmeras

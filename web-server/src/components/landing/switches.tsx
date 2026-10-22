@@ -3,16 +3,15 @@
 import { useState } from "react";
 
 const BANDS = [
-  { say: "O jogo nunca é gravado todo.", why: "Só fica o último minuto, e é apagado continuamente. Sem botão, não fica nada.", on: "bg-brand text-bg" },
+  { say: "O jogo nunca é gravado todo.", why: "Só ficam os últimos 3 minutos, apagados continuamente. Sem botão, não fica nada.", on: "bg-brand text-bg" },
   { say: "Não gravamos o som.", why: "Os vídeos são só imagem: nem conversas, nem gritos de golo.", on: "bg-mint text-bg" },
-  { say: "Ninguém é reconhecido.", why: "Sem reconhecimento facial. Um lance é um lance, não uma ficha de pessoas.", on: "bg-leaf text-fg" },
   { say: "Os vídeos apagam-se sozinhos.", why: "Os replays ficam na lista do campo durante a partida e pouco tempo depois. Descarrega o que quiseres antes de desaparecerem.", on: "bg-brand text-bg" },
   { say: "Não instalas nenhuma aplicação.", why: "Abres o QR Code do campo e a lista de replays está lá.", on: "bg-mint text-bg" },
 ];
 
 // Cada cartão inteiro é o interruptor (um só botão): clicar em qualquer ponto liga/desliga.
 export function Switches() {
-  const [on, setOn] = useState<boolean[]>([true, false, true, false, false]);
+  const [on, setOn] = useState<boolean[]>([true, false, true, false]);
 
   return (
     <div className="mx-auto flex max-w-[1440px] flex-col gap-3 px-3 lg:px-8">

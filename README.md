@@ -25,7 +25,7 @@ Apresentação do projeto: [`Presentation.pdf`](Presentation.pdf).
 1. As câmeras (uma ou mais por quadra; um edge atende o lugar todo) enviam vídeo continuamente pro **edge-server** (RTSP numa câmera IP;
    RTMP na fase de testes com celular).
 2. O edge grava chunks de ~1s numa janela circular em disco.
-3. `POST /replay` junta os chunks de antes + 5s depois do clique em um mp4 (duração por esporte: futsal/futebol 60s, basket 45s, padel 30s)
+3. `POST /replay` junta os chunks de antes + 5s depois do clique em um mp4 (duração: 1 min por padrão, padel 1 min 30 s)
    (ffmpeg, sem reencode) e gera um spritesheet com frames do vídeo.
 4. O mp4 sobe pro **web-server**, onde o usuário o acessa e baixa.
 
@@ -103,9 +103,9 @@ Principais variáveis (`.env`, defaults em `edge-server/src/config.ts`):
 | `INGEST_MODE` | `rtmp` | `rtmp` (POC) ou `external` (câmera RTSP) |
 | `CAMERAS_FILE` | `./cameras.json` | Lista de câmeras (uma ou mais por quadra: `courtId`, `cameraId`, `sport`, `inputUrl`); modelo em `cameras.example.json`. Sem o arquivo, vale uma câmera só via `COURT_ID`/`SPORT`/`INPUT_URL` |
 | `INPUT_URL` | `rtmp://127.0.0.1:1935/live/stream` | Fonte do stream (modo de uma câmera) |
-| `SPORT` | vazio | (modo de uma câmera; no `cameras.json` é o `sport` de cada uma) `futsal`, `futebol` (60s), `basket` (45s) ou `padel` (30s): define a duração do replay; outro valor não sobe |
+| `SPORT` | vazio | (modo de uma câmera; no `cameras.json` é o `sport` de cada uma) `futsal`, `futebol`, `basket` (60s) ou `padel` (90s): define a duração do replay; outro valor não sobe |
 | `REPLAY_POST_ROLL_SECONDS` | `5` | Parte "depois do clique" (o resto da duração é "antes") |
-| `CHUNK_WINDOW_SECONDS` | `90` | Quanto de vídeo fica em disco |
+| `CHUNK_WINDOW_SECONDS` | `120` | Quanto de vídeo fica em disco |
 | `SPRITE_FRAMES` | `12` | Frames do spritesheet (`0` desliga) |
 | `WEB_SERVER_URL` / `EDGE_API_KEY` / `VENUE_ID` | vazio | Upload pro web-server: URL, chave do lugar (gerada no admin) e id do lugar. Sem eles o replay fica só local |
 

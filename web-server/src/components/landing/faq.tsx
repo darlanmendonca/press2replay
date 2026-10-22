@@ -3,12 +3,12 @@
 import { useState } from "react";
 
 const CARDS = [
-  { q: "Tenho de instalar uma aplicação?", a: "Não. Abres o QR Code do campo no telemóvel e a lista de replays está lá, sem registo.", tone: "bg-brand text-bg" },
-  { q: "Quem pode carregar no botão?", a: "Qualquer jogador do grupo, a qualquer momento. Carregou, o lance fica guardado: cerca de 30 segundos, com o pós-lance incluído.", tone: "bg-mint text-bg" },
+  { q: "Tenho de instalar uma aplicação?", a: "Não. Abres o QR Code do campo no telemóvel e a lista de replays está lá.", tone: "bg-brand text-bg" },
+  { q: "Quem pode carregar no botão?", a: "Qualquer jogador do grupo, a qualquer momento. Carregou, o lance fica guardado: 1 minuto e 30 segundos ou 1 minuto, conforme o desporto, com o pós-lance incluído.", tone: "bg-mint text-bg" },
   { q: "Como é o replay que recebo?", a: "Um vídeo vertical, pronto para stories, Reels e TikTok, filmado pelas câmaras do campo, em boa qualidade. Podes ver, descarregar e partilhar.", tone: "bg-leaf text-fg" },
   { q: "Durante quanto tempo vejo os replays?", a: "A lista é por campo e fica disponível durante a partida e pouco tempo depois. Descarrega o que quiseres antes de desaparecer.", tone: "bg-brand text-bg" },
-  { q: "Quem pode ver o meu lance?", a: "Quem abrir a página de replays do campo enquanto os vídeos estão disponíveis. O jogo nunca é gravado na íntegra, não há som nem reconhecimento facial, e os vídeos apagam-se sozinhos.", tone: "bg-mint text-bg" },
-  { q: "Quanto custa ver o replay?", a: "Depende do clube. Nuns, o replay está incluído no campo. Noutros, vês grátis em pré-visualização e só pagas o que quiseres descarregar em HD.", tone: "bg-leaf text-fg" },
+  { q: "Quem pode ver o meu lance?", a: "Quem abrir a página de replays do campo enquanto os vídeos estão disponíveis. O jogo nunca é gravado na íntegra e não tem som. Com o passar do tempo, os vídeos apagam-se sozinhos.", tone: "bg-mint text-bg" },
+  { q: "Quanto custa ver o replay?", a: "Depende do clube. Em alguns, o replay está incluído no aluguer do campo. Noutros, vês a pré-visualização grátis e só pagas antes de descarregar.", tone: "bg-leaf text-fg" },
 ];
 
 // Perguntas em cartões redondos, sem linhas: o fechado é um tom de superfície, o

@@ -10,7 +10,7 @@ import { PHOTO_CREDITS } from "@/lib/photo-credits";
 import { Switches } from "@/components/landing/switches";
 
 const NAV = [
-  { href: "#como-e", label: "Como é" },
+  { href: "#como-e", label: "Como funciona" },
   { href: "#privacidade", label: "Privacidade" },
   { href: "#perguntas", label: "Perguntas" },
 ];
@@ -18,7 +18,7 @@ const NAV = [
 const YOU_CAN = [
   "Ver o replay assim que a jogada acaba",
   "Descarregar em vertical, para stories e Reels",
-  "Partilhar com quem esteve em campo",
+  "Partilhar nas redes sociais",
   "Tudo no telemóvel, sem instalar nada",
 ];
 
@@ -73,7 +73,7 @@ export default function Home() {
                   href="#como-e"
                   className="inline-flex h-14 items-center rounded-full bg-brand px-8 text-lg font-bold text-bg transition-transform hover:-translate-y-0.5 active:scale-95"
                 >
-                  Ver o replay a chegar
+                  Ver o replay
                 </a>
               </div>
             </div>
@@ -85,13 +85,10 @@ export default function Home() {
 
         {/* Como é: do campo ao telemóvel */}
         <section id="como-e" className="scroll-mt-14 py-24 lg:py-40">
-          <div className={`${wrap} grid gap-8 lg:grid-cols-12 lg:gap-6`}>
-            <h2 data-reveal className="text-[clamp(36px,4vw,60px)] font-extrabold leading-[1.02] tracking-tight lg:col-span-5">
+          <div className={wrap}>
+            <h2 data-reveal className="text-[clamp(36px,4vw,60px)] font-extrabold leading-[1.02] tracking-tight">
               Do campo ao telemóvel.
             </h2>
-            <p data-reveal style={delay(80)} className="max-w-[40ch] text-lg lg:col-span-5 lg:col-start-7">
-              Quatro momentos, sem nada para fazer a não ser jogar. Escolhe um para ver o que acontece.
-            </p>
           </div>
           <div data-reveal style={delay(120)} className={`${wrap} mt-12`}>
             <Journey />
@@ -121,8 +118,8 @@ export default function Home() {
                 O teu replay, no telemóvel.
               </h2>
               <p data-reveal style={delay(80)} className="mt-6 max-w-[40ch] text-lg">
-                Cada campo tem as câmaras e os botões certos para o desporto que lá se joga. Quando carregas num botão,
-                o sistema corta a jogada e envia-ta pronta a ver.
+                Cada campo está equipado com câmaras e botões adaptados à modalidade praticada. Basta carregar no botão
+                no momento certo e o sistema prepara automaticamente o replay, pronto a ver e partilhar.
               </p>
               <ul className="mt-8 flex flex-col gap-3 text-lg">
                 {YOU_CAN.map((item, i) => (
@@ -222,7 +219,7 @@ export default function Home() {
           <nav aria-label="Explorar" className="lg:col-span-3 lg:col-start-10 lg:text-right">
             <p className="text-lg font-extrabold">Explorar</p>
             <ul className="mt-4 flex flex-col gap-3 text-base lg:items-end">
-              <li><a href="#como-e" className="hover:underline">Como é</a></li>
+              <li><a href="#como-e" className="hover:underline">Como funciona</a></li>
               <li><a href="#privacidade" className="hover:underline">Privacidade</a></li>
               <li><a href="#perguntas" className="hover:underline">Perguntas</a></li>
               <li><a href="#contacto" className="hover:underline">Contacto</a></li>

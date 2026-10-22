@@ -4,14 +4,13 @@
 
 POC para a startup **Press2Replay** (logo em `Press2Replay.png`, apresentação em
 `Presentation.pdf`, ambos na raiz): jogadores de partidas de futebol de salão, padel, etc.
-apertam um botão e recebem a gravação do **momento do lance** (30 a 60s,
-conforme o esporte), sem precisar de operador de câmera ou edição manual.
+apertam um botão e recebem a gravação do **momento do lance** (1 min, ou 1 min 30 s no padel), sem precisar de operador de câmera ou edição manual.
 
 Ideia central: uma câmera fica sempre filmando e fazendo *stream* para um
 servidor **edge** local (rodando num Raspberry Pi, na própria quadra). O edge
 mantém uma janela deslizante dos últimos segmentos de vídeo. Quando alguém
 aperta o botão de "replay", o edge junta a janela em torno do clique (duração por
-esporte: 60s futsal/futebol, 45s basket, 30s padel; 5s depois) num único vídeo (com ffmpeg) e sobe esse arquivo para um servidor na **nuvem**, onde fica
+esporte: 60s por padrão, 90s no padel; 5s depois) num único vídeo (com ffmpeg) e sobe esse arquivo para um servidor na **nuvem**, onde fica
 disponível para o jogador acessar depois (link, app, etc).
 
 Este arquivo existe para fixar o contexto entre sessões e é atualizado
@@ -44,8 +43,8 @@ Responsabilidades:
 - Gravar o stream em **chunks curtos** (~1 segundo) em disco, mantendo uma
   janela circular e descartando os mais antigos.
 - Expor `POST /replay`, que:
-  - corta uma janela fixa em torno do clique (duração por esporte: 60s
-    futsal/futebol, 45s basket, 30s padel; 5s são pós-roll)
+  - corta uma janela fixa em torno do clique (duração: 60s por
+    padrão, 90s no padel; 5s são pós-roll)
     concatenando os chunks com **ffmpeg** (`-c copy`, sem reencode);
   - salva o vídeo final localmente (`replay_<timestamp>.mp4`);
   - gera um **spritesheet** (`replay_<timestamp>.jpg`) com frames
@@ -113,7 +112,7 @@ Pontos em aberto:
     tempo de forma confiável).
   - `POST /replay` corta uma janela **fixa** em torno do clique. A duração
     total vem do esporte (`SPORT` no edge, tabela em `src/config.ts`):
-    **futsal e futebol 60s, basket 45s, padel 30s**, sempre com 5s de pós-roll
+    **60s por padrão (futsal, futebol, basket) e 90s no padel**, sempre com 5s de pós-roll
     (`REPLAY_POST_ROLL_SECONDS`) e o resto de pré-roll; outro valor de `SPORT`
     derruba o boot (o web-server valida a mesma lista em `src/lib/sports.ts`).
     Sem `SPORT` valem `REPLAY_PRE_ROLL_SECONDS`/`REPLAY_POST_ROLL_SECONDS`
@@ -160,14 +159,14 @@ Pontos em aberto:
     spritesheet, sem fila (um aperto numa quadra de N câmeras decodifica N juntos).
     Upload confirmado apaga o `.mp4` e o `.jpg` locais na hora; falha mantém
     os arquivos com um teto de retenção (`OUTPUT_RETENTION_COUNT`).
-  - Janela de retenção dos chunks (`CHUNK_WINDOW_SECONDS`) reduzida pra 90s
-    (era 300s) — o `delete_segments` do ffmpeg já limpa continuamente a
-    cada segundo, então só precisa de folga sobre o corte de 60s.
+  - Janela de retenção dos chunks (`CHUNK_WINDOW_SECONDS`) em 120s
+    (era 300s; subiu de 90s quando o padel passou a 90s de replay — o boot falha se a janela for curta) — o `delete_segments` do ffmpeg já limpa continuamente a
+    cada segundo, então só precisa de folga sobre o corte de 90s.
   - Recomendação de deploy (documentada em detalhe no README): colocar
     `CHUNKS_DIR`/`OUTPUT_DIR` em `tmpfs` (RAM) no Raspberry Pi, pra zerar o
     desgaste de escrita em SD/SSD — nesse cenário o SSD passa a ser
     dispensável no hardware, e RAM vira o recurso a dimensionar
-    (~90MB pra 1080p, ~280MB pra 4K com janela de 90s).
+    (~120MB pra 1080p, ~375MB pra 4K com janela de 120s).
 - **Web server** (`web-server/`): Next 16.4, React 19.3, TS, App Router,
   Tailwind v4 (tema Press2Replay em `globals.css`, extraído do
   `Presentation.pdf`). Deploy na Vercel (Hobby, Root Directory `web-server`).

@@ -30,7 +30,7 @@ export function ReplayFragment({ compact = false }: { compact?: boolean }) {
             <path d="M34 20 L82 50 L34 80 Z" fill="currentColor" />
           </svg>
         </span>
-        <span className="absolute bottom-3 right-3 rounded-full bg-bg px-3 py-1 text-sm font-bold">0:30</span>
+        <span className="absolute bottom-3 right-3 rounded-full bg-bg px-3 py-1 text-sm font-bold">1:00</span>
       </div>
 
       <div className={`mt-4 grid gap-2 font-bold ${compact ? "grid-cols-[1.5fr_1fr] text-sm" : "grid-cols-2 text-base"}`}>

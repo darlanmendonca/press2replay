@@ -17,16 +17,20 @@ export type IngestMode = 'rtmp' | 'external';
 const ingestMode: IngestMode = (process.env.INGEST_MODE as IngestMode) || 'rtmp'; // 'rtmp' (POC via celular) | 'external' (camera RTSP real)
 const rtmpPort = int(process.env.RTMP_PORT, 1935);
 
-// Duracao TOTAL do replay por esporte, em segundos. So estes esportes sao
+// Duracao TOTAL do replay, em segundos: 1 min por padrao, com excecoes por esporte
+// (o padel tem trocas de bola mais longas: 1 min 30 s). So estes esportes sao
 // aceitos (o web-server valida a mesma lista em src/lib/sports.ts - manter as
-// duas em sincronia).
-export const SPORT_REPLAY_SECONDS = {
-  futsal: 60,
-  futebol: 60,
-  padel: 30,
-  basket: 45,
-} as const;
-export type Sport = keyof typeof SPORT_REPLAY_SECONDS;
+// duas em sincronia). A landing page tambem diz isto (journey.tsx, hero-demo.tsx).
+export const DEFAULT_REPLAY_SECONDS = 60;
+const REPLAY_SECONDS_EXCEPTIONS = { padel: 90 } as const;
+const SPORTS = ['futsal', 'futebol', 'basket', 'padel'] as const;
+export type Sport = (typeof SPORTS)[number];
+export const SPORT_REPLAY_SECONDS: Record<Sport, number> = Object.fromEntries(
+  SPORTS.map((sport) => [
+    sport,
+    (REPLAY_SECONDS_EXCEPTIONS as Partial<Record<Sport, number>>)[sport] ?? DEFAULT_REPLAY_SECONDS,
+  ]),
+) as Record<Sport, number>;
 
 // Mesmo formato que o web-server exige pro id do local e da quadra (entra no
 // caminho do storage e na URL do QR) - e aqui tambem vira nome de pasta.
@@ -59,7 +63,7 @@ function parseSport(raw: unknown, where: string): Sport | '' {
 
 // O /replay corta uma janela fixa em torno do instante do clique: X segundos
 // de "antes" + Y segundos de "depois". Com esporte, o total vem da tabela
-// SPORT_REPLAY_SECONDS (futsal/futebol 60s, basket 45s, padel 30s): o pos-roll
+// SPORT_REPLAY_SECONDS (60s por padrao, padel 90s): o pos-roll
 // fica em REPLAY_POST_ROLL_SECONDS (5s) e o resto e pre-roll -
 // REPLAY_PRE_ROLL_SECONDS so vale sem esporte. Selecionado por duracao real dos
 // chunks na playlist, nao por quantidade de arquivos.
@@ -195,6 +199,18 @@ function loadCameras(): Camera[] {
 
 const cameras = loadCameras();
 
+// A janela de chunks em disco tem de caber o maior replay das cameras deste edge (+ folga),
+// senao o corte sairia mais curto que o prometido ao jogador.
+{
+  const chunkWindow = int(process.env.CHUNK_WINDOW_SECONDS, 120);
+  const longest = Math.max(0, ...cameras.map((camera) => (camera.sport ? SPORT_REPLAY_SECONDS[camera.sport] : 0)));
+  if (chunkWindow < longest + 10) {
+    throw new Error(
+      `CHUNK_WINDOW_SECONDS=${chunkWindow} e curto: o maior replay deste edge tem ${longest}s e a janela precisa de pelo menos ${longest + 10}s (use ${Math.max(120, longest + 30)})`,
+    );
+  }
+}
+
 // Todas as cameras de uma quadra (vazio se a quadra nao tem camera aqui).
 export function getCameras(courtId: string): Camera[] {
   return cameras.filter((camera) => camera.courtId === courtId);
@@ -219,10 +235,11 @@ export const config = {
   // igual ou menor que este valor - ver README (secao "GOP / I-frame interval").
   chunkDurationSeconds: int(process.env.CHUNK_DURATION_SECONDS, 1),
   // Janela de retencao dos chunks em disco, POR CAMERA. So precisa dar folga
-  // sobre o maior replay (60s; concat com -c copy leva bem menos de 1s) - nao
-  // afeta bytes escritos por segundo, so quanto fica acumulado (ver README,
-  // secao de desgaste de SD/SSD).
-  chunkWindowSeconds: int(process.env.CHUNK_WINDOW_SECONDS, 90),
+  // sobre o maior replay (90s no padel; concat com -c copy leva bem menos de 1s)
+  // - nao afeta bytes escritos por segundo, so quanto fica acumulado (ver README,
+  // secao de desgaste de SD/SSD). Se for menor que o maior replay, o boot falha
+  // (ver validacao abaixo): senao o video sairia mais curto que o prometido.
+  chunkWindowSeconds: int(process.env.CHUNK_WINDOW_SECONDS, 120),
 
   // Se o ultimo chunk da playlist for mais antigo que isto (em relacao ao
   // instante do clique), consideramos o stream parado e recusamos o
