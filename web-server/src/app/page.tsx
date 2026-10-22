@@ -199,7 +199,7 @@ export default function Home() {
                     Quero isto no meu campo.
                   </h2>
                   <p className="max-w-[34ch] text-lg">
-                    Jogas ou geres um campo e queres o botão lá? Diz-nos onde fica e falamos contigo.
+                    Jogas ou geres um campo e queres os replays das tuas jogadas? Diz-nos onde fica e falamos contigo.
                   </p>
                 </div>
                 <ContactForm />
@@ -209,21 +209,28 @@ export default function Home() {
         </section>
       </main>
 
-      {/* Fecho: o nome, em tamanho de poster. */}
-      <footer className="relative mx-3 overflow-hidden rounded-t-[40px] bg-brand text-bg lg:mx-6">
-        <div className={`${wrap} pt-16 lg:pt-24`}>
-          <p aria-label="press2replay" className="whitespace-nowrap text-[clamp(48px,14vw,230px)] font-extrabold leading-[0.9] tracking-[-0.05em]">
-            press2replay
-          </p>
-        </div>
-        <div className={`${wrap} grid gap-10 pb-10 pt-14 lg:grid-cols-12 lg:gap-6`}>
-          <nav className="grid grid-cols-2 gap-x-6 gap-y-3 text-base font-bold lg:col-span-8 lg:grid-cols-3">
-            <a href="#como-e" className="hover:underline">Como é</a>
-            <a href="#privacidade" className="hover:underline">Privacidade</a>
-            <a href="#perguntas" className="hover:underline">Perguntas</a>
+      {/* Rodapé */}
+      <footer className="mx-3 rounded-t-[40px] bg-brand text-bg lg:mx-6">
+        <div className={`${wrap} grid gap-12 pb-10 pt-14 lg:grid-cols-12 lg:gap-6 lg:pt-20`}>
+          <div className="lg:col-span-6">
+            <a href="#" className="text-[28px] font-extrabold tracking-tight">
+              press2replay
+            </a>
+            <p className="mt-3 max-w-[32ch] text-lg">Replay desportivo para clubes e campos.</p>
+          </div>
+          <nav aria-label="Explorar" className="lg:col-span-3 lg:col-start-10 lg:text-right">
+            <p className="text-lg font-extrabold">Explorar</p>
+            <ul className="mt-4 flex flex-col gap-3 text-base lg:items-end">
+              <li><a href="#como-e" className="hover:underline">Como é</a></li>
+              <li><a href="#privacidade" className="hover:underline">Privacidade</a></li>
+              <li><a href="#perguntas" className="hover:underline">Perguntas</a></li>
+              <li><a href="#contacto" className="hover:underline">Contacto</a></li>
+            </ul>
           </nav>
-          <p className="text-base lg:col-span-4">Press2replay · Portugal<br />Replay desportivo para clubes e campos.</p>
-
+        </div>
+        <div className={`${wrap} flex flex-col gap-2 pb-8 text-base lg:flex-row lg:justify-between`}>
+          <p>© 2026 Press2replay · Portugal. Todos os direitos reservados.</p>
+          <p>Condições sujeitas a proposta.</p>
         </div>
       </footer>
     </>

@@ -31,24 +31,25 @@ export function ContactForm() {
     <form action={action} className="flex flex-col gap-[10px]">
       <label>
         <span className="sr-only">O teu nome</span>
-        <input name="name" required maxLength={120} autoComplete="name" placeholder="O teu nome" className={field} />
+        <input name="name" required maxLength={120} autoComplete="off" placeholder="O teu nome" className={field} />
       </label>
       <label>
         <span className="sr-only">E-mail</span>
-        <input name="email" type="email" required maxLength={200} autoComplete="email" placeholder="E-mail" className={field} />
+        <input name="email" type="email" required maxLength={200} autoComplete="off" placeholder="E-mail" className={field} />
       </label>
       <label>
         <span className="sr-only">O teu campo ou clube</span>
-        <input name="club" required maxLength={120} placeholder="O teu campo ou clube" className={field} />
+        <input name="club" required maxLength={120} autoComplete="off" placeholder="O teu campo ou clube" className={field} />
       </label>
       <label>
         <span className="sr-only">Mensagem</span>
         <textarea
           name="message"
+          autoComplete="off"
           rows={3}
           maxLength={3000}
           placeholder="Onde fica e que desporto jogas? (opcional)"
-          className={`${field} h-auto min-h-[104px] rounded-2xl py-3`}
+          className={`${field} h-[200px] resize-none rounded-2xl py-3`}
         />
       </label>
       {/* Honeypot: escondido para pessoas, bots costumam preencher. */}

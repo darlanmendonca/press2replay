@@ -1,7 +1,5 @@
 import Image from "next/image";
 
-const FRAMES = ["0% 50%", "30% 50%", "60% 50%", "90% 50%"];
-
 // O ecrã de replay que o jogador abre no telemóvel, como fragmento da interface
 // do produto. A imagem do vídeo é ilustrativa (trocar por um frame de replay real).
 export function ReplayFragment({ compact = false }: { compact?: boolean }) {
@@ -34,24 +32,6 @@ export function ReplayFragment({ compact = false }: { compact?: boolean }) {
         </span>
         <span className="absolute bottom-3 right-3 rounded-full bg-bg px-3 py-1 text-sm font-bold">0:30</span>
       </div>
-
-      {!compact && (
-      <div className="mt-2 grid grid-cols-4 gap-1.5" aria-hidden>
-        {FRAMES.map((pos) => (
-          <span key={pos} className="relative block aspect-square overflow-hidden rounded-lg">
-            <Image
-              src="/photos/futsal-ai.jpg"
-              alt=""
-              width={480}
-              height={480}
-              sizes="80px"
-              style={{ objectPosition: pos }}
-              className="size-full scale-[2.2] object-cover"
-            />
-          </span>
-        ))}
-      </div>
-      )}
 
       <div className={`mt-4 grid gap-2 font-bold ${compact ? "grid-cols-[1.5fr_1fr] text-sm" : "grid-cols-2 text-base"}`}>
         <span className="flex h-12 items-center justify-center rounded-lg bg-brand text-bg">Descarregar</span>
