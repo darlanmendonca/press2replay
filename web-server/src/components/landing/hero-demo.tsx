@@ -51,13 +51,13 @@ export function HeroDemo() {
         >
         <div className="absolute inset-0 overflow-hidden rounded-full bg-surface">
           <Image
-            src="/photos/futsal-indoor.jpg"
+            src="/photos/futsal-ai.jpg"
             alt="Jogadora de futsal a conduzir a bola num pavilhão"
-            width={1920}
-            height={2400}
+            width={1254}
+            height={1254}
             sizes="(min-width: 1024px) 40vw, 90vw"
             priority
-            style={{ objectPosition: "50% 38%" }}
+            style={{ objectPosition: "50% 50%" }}
             className="size-full object-cover"
           />
         </div>

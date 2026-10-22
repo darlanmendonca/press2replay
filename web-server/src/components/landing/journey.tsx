@@ -17,28 +17,28 @@ const STAGES: Stage[] = [
     text: "Cada campo tem a sua página de replays, que abres pelo QR Code junto ao campo. Os replays do teu jogo vão aparecer lá.",
     tone: "bg-forest",
     ink: "text-fg",
-    photo: { src: "/photos/padel-court-nsambya.jpg", alt: "Campo de padel coberto, com dois jogadores", w: 1920, h: 1272, pos: "60% 50%" },
+    photo: { src: "/photos/botao-padel.jpg", alt: "Botão vermelho do press2replay numa placa junto a um campo de padel, com um jogador ao fundo", w: 1254, h: 1254, pos: "50% 50%" },
   },
   {
     name: "Jogas",
     text: "As câmaras acompanham o campo, mas o jogo nunca é gravado na íntegra: fica apenas o último minuto, apagado continuamente. Tu só jogas.",
     tone: "bg-leaf",
     ink: "text-fg",
-    photo: { src: "/photos/beachtenis-na-kapitolu.jpg", alt: "Campo de ténis de praia visto de cima, com vários jogadores", w: 1920, h: 1280, pos: "60% 55%" },
+    photo: { src: "/photos/padel-jogo.jpg", alt: "Quatro jogadores de padel num campo ao sol, com o jogador de amarelo a devolver a bola", w: 1254, h: 1254, pos: "50% 50%" },
   },
   {
     name: "Carregas",
     text: "Boa jogada? Um jogador carrega no botão ao lado do campo e só esse momento é guardado, cerca de 30 segundos.",
     tone: "bg-brand",
     ink: "text-bg",
-    photo: { src: "/photos/futsal-indoor.jpg", alt: "Jogadora de futsal a conduzir a bola num pavilhão", w: 1920, h: 2400, pos: "50% 38%" },
+    photo: { src: "/photos/carregar-botao.jpg", alt: "Jogador a carregar com a mão no botão vermelho do press2replay, numa placa junto ao campo de padel", w: 1254, h: 1254, pos: "50% 50%" },
   },
   {
     name: "Vês e partilhas",
     text: "Durante a partida e pouco depois, abres a página do campo no telemóvel. Vês a lista de replays, descarregas e partilhas. Sem aplicação para instalar.",
     tone: "bg-mint",
     ink: "text-bg",
-    photo: { src: "/photos/beach-tennis-play.jpg", alt: "Quatro jogadores de ténis de praia numa jogada junto à rede", w: 1280, h: 943, pos: "60% 55%" },
+    photo: { src: "/photos/replays-telemovel.jpg", alt: "Jogador a segurar um telemóvel com a lista de replays do press2replay, num campo de padel", w: 1254, h: 1254, pos: "50% 50%" },
   },
 ];
 

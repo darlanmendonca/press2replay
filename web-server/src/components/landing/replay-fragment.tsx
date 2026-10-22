@@ -20,10 +20,10 @@ export function ReplayFragment({ compact = false }: { compact?: boolean }) {
 
       <div className="relative mt-3 aspect-square overflow-hidden rounded-2xl bg-surface">
         <Image
-          src="/photos/futsal-indoor.jpg"
+          src="/photos/futsal-ai.jpg"
           alt=""
-          width={1920}
-          height={2400}
+          width={1254}
+          height={1254}
           sizes="290px"
           className="size-full object-cover"
         />
@@ -40,10 +40,10 @@ export function ReplayFragment({ compact = false }: { compact?: boolean }) {
         {FRAMES.map((pos) => (
           <span key={pos} className="relative block aspect-square overflow-hidden rounded-lg">
             <Image
-              src="/photos/futsal-indoor.jpg"
+              src="/photos/futsal-ai.jpg"
               alt=""
               width={480}
-              height={600}
+              height={480}
               sizes="80px"
               style={{ objectPosition: pos }}
               className="size-full scale-[2.2] object-cover"
