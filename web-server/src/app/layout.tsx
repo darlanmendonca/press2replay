@@ -11,7 +11,7 @@ const poppins = Poppins({
 
 export const metadata: Metadata = {
   title: "Press2Replay",
-  description: "Replay desportivo para clubes e campos.",
+  description: "Carrega no botão e recebe o replay da tua jogada no telemóvel, em segundos.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
