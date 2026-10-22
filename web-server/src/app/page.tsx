@@ -6,6 +6,7 @@ import { Journey } from "@/components/landing/journey";
 import { ReplayFragment } from "@/components/landing/replay-fragment";
 import { RevealRoot } from "@/components/landing/reveal-root";
 import { SportsCarousel } from "@/components/landing/sports-carousel";
+import { PHOTO_CREDITS } from "@/lib/photo-credits";
 import { Switches } from "@/components/landing/switches";
 
 const NAV = [
@@ -232,6 +233,17 @@ export default function Home() {
           <p>© 2026 Press2replay · Portugal. Todos os direitos reservados.</p>
           <p>Condições sujeitas a proposta.</p>
         </div>
+        <p className={`${wrap} pb-8 text-sm`}>
+          Fotografias:{" "}
+          {PHOTO_CREDITS.map((c, i) => (
+            <span key={c.page}>
+              <a className="underline" href={c.page}>“{c.title}”</a>, {c.creator},{" "}
+              <a className="underline" href={c.licenseUrl}>{c.license}</a>
+              {i < PHOTO_CREDITS.length - 1 ? "; " : ". "}
+            </span>
+          ))}
+          Via Wikimedia Commons e outras coleções abertas.
+        </p>
       </footer>
     </>
   );

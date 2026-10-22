@@ -6,7 +6,7 @@ import { sendContactAction, type ContactState } from "@/app/contact-action";
 
 // Campos sobre o cartao verde: um tom mais claro do fundo, sem linhas.
 const field =
-  "h-[52px] w-full rounded-2xl bg-mint/60 px-4 text-bg outline-none placeholder:text-bg/70 focus-visible:ring-2 focus-visible:ring-bg lg:h-[52px]";
+  "h-[52px] w-full rounded-2xl bg-mint/60 px-4 text-bg outline-none placeholder:text-bg/70 focus-visible:ring-2 focus-visible:ring-bg";
 
 export function ContactForm() {
   const [state, action, pending] = useActionState(
