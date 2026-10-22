@@ -1,74 +1,73 @@
 "use server";
 
+import { createHash } from "node:crypto";
+import { and, count, eq, gte } from "drizzle-orm";
+import { headers } from "next/headers";
+import { db } from "@/db";
+import { contactRequest } from "@/db/schema";
+
 // Estado devolvido ao useActionState do formulario de contacto.
 export type ContactState = { error?: string; sent?: boolean };
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Sem `?`, `&`, aspas nem `<>`: o e-mail vira um link `mailto:` no admin, e esses
+// caracteres deixariam injetar parametros (cc, body) no link.
+const EMAIL_PATTERN = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/;
 
-function field(formData: FormData, name: string) {
+// Limite por IP: no maximo 3 pedidos em 10 minutos.
+const RATE_LIMIT = 3;
+const RATE_WINDOW_MS = 10 * 60 * 1000;
+
+// Tira caracteres de controlo (um NUL faz o Postgres falhar) e os de direcao de texto
+// (podem fazer um nome parecer outro no admin). Mantem \n e \t so na mensagem.
+function clean(value: string, multiline = false) {
+  const controls = multiline ? /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g : /[\u0000-\u001F\u007F]/g;
+  return value.replace(controls, "").replace(/[‪-‮⁦-⁩‎‏]/g, "").trim();
+}
+
+function field(formData: FormData, name: string, multiline = false) {
   const value = formData.get(name);
-  return typeof value === "string" ? value.trim() : "";
+  return typeof value === "string" ? clean(value, multiline) : "";
 }
 
-function escapeHtml(text: string) {
-  return text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+// Hash do IP com um segredo do servidor: serve so para limitar abusos e nao deixa
+// o IP em claro na base de dados (dados pessoais, RGPD).
+async function clientHash() {
+  const h = await headers();
+  const ip = (h.get("x-forwarded-for") ?? "").split(",")[0]?.trim() || h.get("x-real-ip") || "unknown";
+  const salt = process.env.BETTER_AUTH_SECRET ?? "dev";
+  return createHash("sha256").update(`${salt}:${ip}`).digest("hex");
 }
 
-// Envia o pedido por e-mail via Resend (API REST, sem SDK). Pagina publica:
-// nao ha sessao, so honeypot + validacao basica.
+// Guarda o pedido na base de dados (por agora nao envia e-mail; quem trata dos
+// pedidos le-os em /admin/contactos). Pagina publica: nao ha sessao, so
+// honeypot, validacao, limite por IP e retencao de 12 meses (cron de purge).
 export async function sendContactAction(_prev: ContactState, formData: FormData): Promise<ContactState> {
-  // Honeypot: um bot preenche o campo escondido; fingimos sucesso e nao enviamos.
+  // Honeypot: um bot preenche o campo escondido; fingimos sucesso e nao guardamos.
   if (field(formData, "website")) return { sent: true };
 
   const name = field(formData, "name");
   const club = field(formData, "club");
   const email = field(formData, "email");
-  const phone = field(formData, "phone");
-  const message = field(formData, "message");
+  const message = field(formData, "message", true);
 
   if (!name || name.length > 120) return { error: "Indique o seu nome." };
   if (!club || club.length > 120) return { error: "Indique o nome do clube ou campo." };
   if (!EMAIL_PATTERN.test(email) || email.length > 200) return { error: "Indique um e-mail válido." };
-  if (phone.length > 40) return { error: "Telemóvel inválido." };
   if (message.length > 3000) return { error: "A mensagem é demasiado longa (máx. 3000 caracteres)." };
 
-  const apiKey = process.env.RESEND_API_KEY;
-  const to = process.env.CONTACT_TO_EMAIL;
-  if (!apiKey || !to) {
-    console.error("contact: RESEND_API_KEY ou CONTACT_TO_EMAIL em falta");
-    return { error: "Não foi possível enviar agora. Tente novamente mais tarde." };
-  }
-
-  const rows: [string, string][] = [
-    ["Nome", name],
-    ["Clube / campo", club],
-    ["E-mail", email],
-    ["Telemóvel", phone || "—"],
-  ];
-  const html =
-    `<table cellpadding="4">${rows
-      .map(([k, v]) => `<tr><td><b>${k}</b></td><td>${escapeHtml(v)}</td></tr>`)
-      .join("")}</table>` +
-    `<p style="white-space:pre-wrap">${escapeHtml(message || "(sem mensagem)")}</p>`;
-
   try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        from: process.env.CONTACT_FROM_EMAIL ?? "Press2Replay <onboarding@resend.dev>",
-        to: to.split(",").map((a) => a.trim()),
-        reply_to: email,
-        subject: `Pedido de proposta: ${club}`,
-        html,
-      }),
-    });
-    if (!res.ok) {
-      console.error("contact: Resend respondeu", res.status, await res.text());
-      return { error: "Não foi possível enviar agora. Tente novamente mais tarde." };
+    const ipHash = await clientHash();
+    const since = new Date(Date.now() - RATE_WINDOW_MS);
+    const [{ recent }] = await db
+      .select({ recent: count() })
+      .from(contactRequest)
+      .where(and(eq(contactRequest.ipHash, ipHash), gte(contactRequest.createdAt, since)));
+    if (recent >= RATE_LIMIT) {
+      return { error: "Recebemos vários pedidos seus. Tente novamente dentro de alguns minutos." };
     }
+    await db.insert(contactRequest).values({ name, club, email, message, ipHash });
   } catch (err) {
-    console.error("contact: falha ao chamar o Resend", err);
+    console.error("contact: falha ao guardar o pedido", err);
     return { error: "Não foi possível enviar agora. Tente novamente mais tarde." };
   }
 

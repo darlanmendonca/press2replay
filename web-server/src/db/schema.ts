@@ -187,3 +187,24 @@ export type Replay = typeof replay.$inferSelect;
 export type NewReplay = typeof replay.$inferInsert;
 export type VenueStaff = typeof venueStaff.$inferSelect;
 export type NewVenueStaff = typeof venueStaff.$inferInsert;
+
+// Pedidos de contacto vindos do formulario da landing (publico, sem sessao).
+// So admins leem (ver /admin/contactos). `handledAt` null = ainda por responder.
+export const contactRequest = pgTable(
+  "contact_request",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    club: text("club").notNull(),
+    email: text("email").notNull(),
+    message: text("message").notNull().default(""),
+    // sha256(IP + segredo): so serve para limitar abusos; o IP em claro nao e guardado.
+    ipHash: text("ip_hash"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    handledAt: timestamp("handled_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("contact_request_created_at_idx").on(table.createdAt),
+    index("contact_request_ip_hash_idx").on(table.ipHash, table.createdAt),
+  ],
+);

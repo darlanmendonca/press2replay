@@ -231,7 +231,10 @@ export default function Home() {
         </div>
         <div className={`${wrap} flex flex-col gap-2 pb-8 text-base lg:flex-row lg:justify-between`}>
           <p>© 2026 Press2replay · Portugal. Todos os direitos reservados.</p>
-          <p>Condições sujeitas a proposta.</p>
+          <p>
+            <a href="/privacidade" className="hover:underline">Política de privacidade</a>
+            {" · "}Condições sujeitas a proposta.
+          </p>
         </div>
         <p className={`${wrap} pb-8 text-sm`}>
           Fotografias:{" "}

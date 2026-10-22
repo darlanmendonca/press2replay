@@ -33,6 +33,11 @@ async function AdminShell({ children }: { children: React.ReactNode }) {
               Places
             </Link>
           )}
+          {user.isAdmin && (
+            <Link href="/admin/contactos" className="text-sm text-muted transition-colors hover:text-brand">
+              Contactos
+            </Link>
+          )}
         </div>
         <div className="flex items-center gap-4 text-sm">
           <span

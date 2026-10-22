@@ -59,6 +59,13 @@ export function ContactForm() {
           <input name="website" tabIndex={-1} autoComplete="off" />
         </label>
       </div>
+      <p className="text-sm">
+        Usamos estes dados só para responder ao teu pedido e guardamo-los até 12 meses. Vê a{" "}
+        <a href="/privacidade" className="font-bold underline">
+          política de privacidade
+        </a>
+        .
+      </p>
       {state.error && (
         <p role="alert" className="text-base font-bold">
           {state.error}
