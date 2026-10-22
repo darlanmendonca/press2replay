@@ -1,0 +1,1 @@
+Press2replay: carrega no botão e recebe o replay da tua jogada.

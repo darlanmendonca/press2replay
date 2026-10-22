@@ -12,6 +12,13 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   title: "Press2Replay",
   description: "Carrega no botão e recebe o replay da tua jogada no telemóvel, em segundos.",
+  openGraph: {
+    title: "Press2Replay",
+    description: "Carrega no botão e recebe o replay da tua jogada no telemóvel, em segundos.",
+    type: "website",
+    locale: "pt_PT",
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
