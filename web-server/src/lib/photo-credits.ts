@@ -1,15 +1,7 @@
 // Créditos das fotografias reais (Wikimedia Commons) que exigem atribuição. As imagens
 // geradas por IA não entram aqui. Se uma foto for trocada, tira-se daqui a linha dela.
 export const PHOTO_CREDITS = [
-  { title: "Futsal (Boys Final), Youth Olympics 2018", creator: "Sandro Halank", license: "CC BY-SA 4.0", licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0", page: "https://commons.wikimedia.org/wiki/File:2018-10-18_Futsal_(Boys_Final)_at_2018_Summer_Youth_Olympics_by_Sandro_Halank%E2%80%93345.jpg" },
-  { title: "Sunday Soccer League", creator: "Florian Volk", license: "CC BY 2.0", licenseUrl: "https://creativecommons.org/licenses/by/2.0", page: "https://commons.wikimedia.org/wiki/File:Sunday_Soccer_League_(41064989984).jpg" },
-  { title: "Anastasiya Yakimova, Damen-Tennis-Bundesliga Moers", creator: "Wikimedia Commons", license: "CC BY-SA 3.0", licenseUrl: "https://creativecommons.org/licenses/by-sa/3.0", page: "https://commons.wikimedia.org/wiki/File:Anastasiya_Yakimova,_Damen-Tennis-Bundesliga_Moers.jpg" },
-  { title: "Pickleball Player", creator: "Picklerpeej", license: "CC BY-SA 4.0", licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0", page: "https://commons.wikimedia.org/w/index.php?curid=107275750" },
-  { title: "ARG vs KOR Women's Volleyball 2024", creator: "BugWarp", license: "CC BY-SA 4.0", licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0", page: "https://commons.wikimedia.org/wiki/File:ARG_vs_KOR_Women%27s_Volleyball_2024_friendly_match_at_GELP_(178).jpg" },
-  { title: "Mara Friton 2006", creator: "Armin Kuebelbeck", license: "CC BY-SA 3.0", licenseUrl: "https://creativecommons.org/licenses/by-sa/3.0/", page: "https://commons.wikimedia.org/wiki/File:Mara_Friton_2006.jpg" },
-  { title: "Cédric Bidart (Biarritz Olympique Rink Hockey)", creator: "DJ Poldoc", license: "CC BY-SA 4.0", licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/", page: "https://commons.wikimedia.org/w/index.php?curid=89496212" },
   { title: "Mix Relay Badminton 2018 YOG", creator: "BugWarp", license: "CC BY-SA 4.0", licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0", page: "https://commons.wikimedia.org/wiki/File:Mix_Relay_Badminton_2018_YOG_Theta_vs_Zeta_Match_5_01.jpg" },
   { title: "Beachtenis na Kapitolu", creator: "SonSanchez", license: "CC BY-SA 3.0", licenseUrl: "https://creativecommons.org/licenses/by-sa/3.0", page: "https://commons.wikimedia.org/wiki/File:Beachtenis_na_Kapitolu.JPG" },
   { title: "Multiple Paddle tennis players engage in a lively match on blue courts surrounded by lush greenery", creator: "Nenad Stojković", license: "CC BY 2.0", licenseUrl: "https://creativecommons.org/licenses/by/2.0", page: "https://commons.wikimedia.org/wiki/File:Multiple_Paddle_tennis_players_engage_in_a_lively_match_on_blue_courts_surrounded_by_lush_greenery.jpg" },
-  { title: "Basketball players play game court", creator: "The African Union Mission in Somalia", license: "CC0", licenseUrl: "https://creativecommons.org/publicdomain/zero/1.0/", page: "https://www.rawpixel.com/image/3372973/free-photo-image-african-activity-africa" },
 ];

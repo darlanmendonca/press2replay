@@ -104,7 +104,12 @@ export function Benefits() {
             }`}
           >
             {b.big && (
-              <span aria-hidden className="absolute -bottom-[150px] -right-[110px] size-[400px] rounded-full bg-current opacity-[0.08]" />
+              <>
+                {/* três círculos translúcidos, cada vez maiores atrás, como no cartão de contacto */}
+                <span aria-hidden className="absolute -bottom-[260px] -right-[150px] size-[620px] rounded-full bg-mint opacity-25" />
+                <span aria-hidden className="absolute -bottom-[230px] -right-[100px] size-[520px] rounded-full bg-mint opacity-40" />
+                <span aria-hidden className="absolute -bottom-[200px] -right-[50px] size-[420px] rounded-full bg-mint opacity-60" />
+              </>
             )}
             <h3
               className={`relative font-extrabold leading-[1.08] tracking-tight ${

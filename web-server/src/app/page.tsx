@@ -174,13 +174,6 @@ export default function Home() {
               <h2 data-reveal className="relative z-10 text-[clamp(36px,4vw,60px)] font-extrabold leading-[1.02] tracking-tight">
                 As dúvidas dos jogadores.
               </h2>
-              <div data-reveal style={delay(100)} className="mt-12 hidden w-[30%] lg:block">
-                <div className="flex aspect-square items-center justify-center rounded-full bg-brand text-bg">
-                  <svg viewBox="0 0 100 100" className="size-[40%]" aria-hidden>
-                    <path d="M34 20 L82 50 L34 80 Z" fill="currentColor" />
-                  </svg>
-                </div>
-              </div>
             </div>
             <div data-reveal style={delay(100)} className="lg:col-span-7">
               <Faq />
@@ -229,6 +222,7 @@ export default function Home() {
             <p className="text-lg font-extrabold">Explorar</p>
             <ul className="mt-4 flex flex-col gap-3 text-base lg:items-end">
               <li><a href="#como-e" className="hover:underline">Como funciona</a></li>
+              <li><a href="#beneficios" className="hover:underline">Benefícios</a></li>
               <li><a href="#privacidade" className="hover:underline">Privacidade</a></li>
               <li><a href="#perguntas" className="hover:underline">Perguntas</a></li>
               <li><a href="#contacto" className="hover:underline">Contacto</a></li>
