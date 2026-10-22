@@ -1,7 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { requireStaff } from "@/lib/session";
 import { SignOutButton } from "./sign-out-button";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 export default function AdminLayout({ children }: LayoutProps<"/admin">) {
   // A sessao le cookies, entao fica atras de um Suspense (Cache Components).

@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 export default function Home() {
   return (
     <>
@@ -7,12 +5,6 @@ export default function Home() {
         <span className="font-extrabold">
           press2<span className="text-brand">replay</span>
         </span>
-        <Link
-          href="/login"
-          className="text-sm text-muted transition-colors hover:text-brand"
-        >
-          Login
-        </Link>
       </header>
       <main className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-3xl flex-col items-center justify-center gap-6 px-6 text-center">
       <p className="text-sm font-bold uppercase tracking-widest text-brand">
