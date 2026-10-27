@@ -99,6 +99,9 @@ export class Segmenter {
     inputArgs.push('-i', this.camera.inputUrl);
 
     const outputArgs = [
+      // Sem audio: algumas cameras anunciam a faixa mesmo com o audio desligado,
+      // e pcm_alaw nao cabe em MPEG-TS (o ffmpeg falharia ao abrir o HLS).
+      '-an',
       '-c', 'copy',
       '-f', 'hls',
       '-hls_time', String(config.chunkDurationSeconds),

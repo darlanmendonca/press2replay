@@ -356,6 +356,54 @@ reinicia (`sudo reboot`).
 - **Tailscale:** se o Pi tiver internet por qualquer via, entras de qualquer lado
   (`ssh <utilizador>@p2r-edge-<local>`).
 
+### Acrescentar uma rede Wi-Fi nova a um Pi que já está instalado
+
+Para o caso de mudares de casa ou teres de ligar o Pi à rede de um local novo.
+
+1. **Liga o Pi por cabo ao router** (porta **LAN**, não a WAN) e alimenta-o. Uma tomada de
+   rede de parede só serve se alguém a ligou ao router na outra ponta. Um Pi ligado só por
+   USB ao Mac **não** cria rede: o USB serve apenas de energia.
+2. **Encontra-o** (espera 1 a 2 minutos depois de ligar):
+   ```bash
+   ssh <utilizador>@p2r-edge-<local>.local
+   arp -a        # alternativa: procura um IP novo, ou vê a lista de dispositivos no router
+   ```
+   Se o `.local` não resolver, usa o IP que o router mostrar. O Mac e o Pi têm de estar na
+   mesma sub-rede (o Wi-Fi do Mac serve, desde que o router não tenha isolamento de clientes).
+3. **Acrescenta a rede** com um nome de perfil que perceba de que local é (`vagos-house`,
+   `cliente-<local>`...). O `con-name` é só a etiqueta do perfil; o `ssid` é o nome real do
+   Wi-Fi:
+   ```bash
+   sudo nmcli connection add type wifi con-name <perfil> \
+     ssid "NOME_DA_REDE" wifi-sec.key-mgmt wpa-psk wifi-sec.psk "SENHA" \
+     connection.autoconnect yes
+   sudo raspi-config nonint do_wifi_country PT   # sem raspi-config (Ubuntu): sudo iw reg set PT
+   nmcli connection show                          # redes já guardadas; as antigas ficam
+   ```
+4. **Testa com o cabo ainda ligado** (o SSH não cai):
+   ```bash
+   nmcli device wifi list | grep NOME_DA_REDE
+   sudo nmcli connection up <perfil>
+   nmcli -f GENERAL.STATE,IP4.ADDRESS device show wlan0
+   ```
+   O `wlan0` deve ficar `connected` com um IP da rede nova. Anota-o (`hostname -I`).
+5. **Reserva esse IP no router** (DHCP, pelo MAC do `wlan0`: `ip link show wlan0`), porque a
+   câmera e o botão precisam de um endereço que não mude.
+6. **Tira o cabo** e confirma o acesso pelo Wi-Fi: `ssh <utilizador>@p2r-edge-<local>.local`
+   ou pelo IP.
+
+Notas:
+
+- Para ver as redes guardadas: `nmcli connection show` (as que têm tipo `wifi`). Num Pi com
+  Ubuntu os perfis antigos aparecem como `netplan-wlan0-<SSID>`.
+- O Pi 4 liga a 5 GHz, mas o **botão ESP32 só liga a 2,4 GHz**. Se o router tiver o mesmo
+  nome nas duas bandas e o botão não ligar, vê a banda.
+- Se esqueceres a senha do Wi-Fi: no Mac, `security find-generic-password -ga "NOME_DA_REDE"`
+  (ou Acesso às Chaves) para uma rede a que o Mac já se ligou; senão, a etiqueta do router.
+- Se esqueceres a **senha do Pi**: tira o cartão, e na partição `bootfs` cria `userconf.txt`
+  com uma linha `<utilizador>:<hash>`, em que o hash vem de `openssl passwd -6` (usa aspas
+  simples ao escrever o ficheiro, por causa do `$`). Volta a meter o cartão e arranca.
+
 ### Perguntar ao cliente antes
 
 - A rede tem **portal de login** (página de aceitar termos) ou **isolamento entre
@@ -420,6 +468,7 @@ instalares). O overlay (ponto 3) fica para quando o sistema estiver estável.
 | Serviço em loop a reiniciar | `edge.env` ou `cameras.json` inválido: o erro está no `journalctl -u press2replay`. |
 | `uploaded: false` | `WEB_SERVER_URL`, `EDGE_API_KEY` ou `VENUE_ID` errados, ou sem internet. O replay fica em `/var/lib/press2replay/output`. |
 | Pi não aparece na rede | Wi-Fi do cliente não alcançado ou com isolamento; liga por cabo e vê o IP no router. |
+| `ssh` fica congelado | O Pi não está na rede: cabo na porta errada, tomada de parede sem ligação, só USB ao Mac, ou ainda a arrancar. Liga por cabo a uma porta LAN do router e vê a secção "Acrescentar uma rede Wi-Fi nova". |
 | Update nunca corre | `systemctl list-timers`; `journalctl -u press2replay-update`. Confirma a deploy key (`sudo -u press2replay git -C /opt/press2replay fetch`). |
 | Commit mau ficou "ignorado" | Corrige no repositório e faz push de um commit novo; o antigo só é ignorado enquanto for a ponta da branch. |
 
