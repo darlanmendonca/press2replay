@@ -30,7 +30,7 @@ export default function PrivacyPage() {
 
       <h2 className={h2}>Formulário de contacto</h2>
       <p className="mt-3">
-        Quando pedes uma proposta, guardamos o teu nome, o nome do clube ou campo, o e-mail e a mensagem que escreveres.
+        Quando pedes uma proposta, guardamos o nome da pessoa a contactar, o nome do clube ou campo, o e-mail ou telefone (o que escolheres), e a mensagem que escreveres.
         Usamo-los só para te responder. A base legal é a tua iniciativa de nos contactar (diligências pré-contratuais).
       </p>
       <p className="mt-3">

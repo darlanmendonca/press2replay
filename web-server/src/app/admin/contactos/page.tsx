@@ -26,7 +26,11 @@ async function ContactsContent() {
     return <p className={`${cardClass} mt-8 text-center text-muted`}>Ainda não há pedidos.</p>;
   }
 
-  const fmt = new Intl.DateTimeFormat("pt-PT", { dateStyle: "short", timeStyle: "short", timeZone: "Europe/Lisbon" });
+  const fmt = new Intl.DateTimeFormat("pt-PT", {
+    dateStyle: "short",
+    timeStyle: "short",
+    timeZone: "Europe/Lisbon",
+  });
 
   return (
     <ul className="mt-8 flex flex-col gap-4">
@@ -37,7 +41,14 @@ async function ContactsContent() {
               <p className="text-lg font-bold">{r.club}</p>
               <p className="mt-1 text-sm text-muted">
                 {r.name} ·{" "}
-                <a href={`mailto:${encodeURIComponent(r.email)}`} className="text-brand hover:underline">
+                <a
+                  href={
+                    r.contactKind === "phone"
+                      ? `tel:${r.email.replace(/[^0-9+]/g, "")}`
+                      : `mailto:${encodeURIComponent(r.email)}`
+                  }
+                  className="text-brand hover:underline"
+                >
                   {r.email}
                 </a>{" "}
                 · {fmt.format(r.createdAt)}

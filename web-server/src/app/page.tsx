@@ -199,7 +199,7 @@ export default function Home() {
                     Quero isto no meu campo.
                   </h2>
                   <p className="max-w-[34ch] text-lg">
-                    Jogas ou geres um campo e queres os replays das tuas jogadas? Diz-nos onde fica e falamos contigo.
+                    Jogas ou geres um campo e queres os replays das tuas jogadas? Diz-nos onde fica e contactamos o campo.
                   </p>
                 </div>
                 <ContactForm />

@@ -196,7 +196,9 @@ export const contactRequest = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     name: text("name").notNull(),
     club: text("club").notNull(),
+    // Valor do contacto: e-mail ou telefone, conforme `contactKind` (a coluna manteve o nome antigo).
     email: text("email").notNull(),
+    contactKind: text("contact_kind").notNull().default("email"), // "email" | "phone"
     message: text("message").notNull().default(""),
     // sha256(IP + segredo): so serve para limitar abusos; o IP em claro nao e guardado.
     ipHash: text("ip_hash"),

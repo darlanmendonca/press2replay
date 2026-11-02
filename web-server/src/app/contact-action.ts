@@ -13,6 +13,9 @@ export type ContactState = { error?: string; sent?: boolean };
 // caracteres deixariam injetar parametros (cc, body) no link.
 const EMAIL_PATTERN = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/;
 
+// Telefone: so digitos, espacos e + - ( ) ., com 7 a 15 digitos (E.164). Tambem vira link (`tel:`).
+const PHONE_PATTERN = /^\+?[0-9][0-9 ().-]*$/;
+
 // Limite por IP: no maximo 3 pedidos em 10 minutos.
 const RATE_LIMIT = 3;
 const RATE_WINDOW_MS = 10 * 60 * 1000;
@@ -21,7 +24,10 @@ const RATE_WINDOW_MS = 10 * 60 * 1000;
 // (podem fazer um nome parecer outro no admin). Mantem \n e \t so na mensagem.
 function clean(value: string, multiline = false) {
   const controls = multiline ? /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g : /[\u0000-\u001F\u007F]/g;
-  return value.replace(controls, "").replace(/[‪-‮⁦-⁩‎‏]/g, "").trim();
+  return value
+    .replace(controls, "")
+    .replace(/[‪-‮⁦-⁩‎‏]/g, "")
+    .trim();
 }
 
 function field(formData: FormData, name: string, multiline = false) {
@@ -47,12 +53,21 @@ export async function sendContactAction(_prev: ContactState, formData: FormData)
 
   const name = field(formData, "name");
   const club = field(formData, "club");
-  const email = field(formData, "email");
+  const contact = field(formData, "contact");
+  const kind = field(formData, "contactKind") === "phone" ? "phone" : "email";
   const message = field(formData, "message", true);
 
-  if (!name || name.length > 120) return { error: "Indique o seu nome." };
+  if (!name || name.length > 120) return { error: "Indique a pessoa a contactar." };
   if (!club || club.length > 120) return { error: "Indique o nome do clube ou campo." };
-  if (!EMAIL_PATTERN.test(email) || email.length > 200) return { error: "Indique um e-mail válido." };
+  if (kind === "email") {
+    if (!EMAIL_PATTERN.test(contact) || contact.length > 200) return { error: "Indique um e-mail válido." };
+  } else {
+    const digits = contact.replace(/\D/g, "").length;
+    if (!PHONE_PATTERN.test(contact) || contact.length > 30 || digits < 7 || digits > 15) {
+      return { error: "Indique um telefone válido." };
+    }
+  }
+  if (!message) return { error: "Conta-nos um pouco sobre o campo." };
   if (message.length > 3000) return { error: "A mensagem é demasiado longa (máx. 3000 caracteres)." };
 
   try {
@@ -63,12 +78,23 @@ export async function sendContactAction(_prev: ContactState, formData: FormData)
       .from(contactRequest)
       .where(and(eq(contactRequest.ipHash, ipHash), gte(contactRequest.createdAt, since)));
     if (recent >= RATE_LIMIT) {
-      return { error: "Recebemos vários pedidos seus. Tente novamente dentro de alguns minutos." };
+      return {
+        error: "Recebemos vários pedidos seus. Tente novamente dentro de alguns minutos.",
+      };
     }
-    await db.insert(contactRequest).values({ name, club, email, message, ipHash });
+    await db.insert(contactRequest).values({
+      name,
+      club,
+      email: contact,
+      contactKind: kind,
+      message,
+      ipHash,
+    });
   } catch (err) {
     console.error("contact: falha ao guardar o pedido", err);
-    return { error: "Não foi possível enviar agora. Tente novamente mais tarde." };
+    return {
+      error: "Não foi possível enviar agora. Tente novamente mais tarde.",
+    };
   }
 
   return { sent: true };

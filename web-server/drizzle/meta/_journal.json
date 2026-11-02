@@ -57,6 +57,13 @@
       "when": 1792689949215,
       "tag": "0007_contact_request_ip_hash",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793653430430,
+      "tag": "0008_contact_request_contact_kind",
+      "breakpoints": true
     }
   ]
 }
