@@ -1,12 +1,15 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
+import { CheckoutBanner } from "@/components/checkout-banner";
 import { MomentCard } from "@/components/moment-card";
 import { TrackOnMount } from "@/components/track-on-mount";
+import { getMyPurchases } from "@/lib/access";
+import { purchaseCovers } from "@/lib/purchases";
 import { groupMoments, momentCardProps } from "@/lib/moments";
 import { listRecentReplays, REPLAY_TTL_MINUTES } from "@/lib/replays";
 import { ID_PATTERN } from "@/lib/storage";
-import { getCourt } from "@/lib/venues";
+import { getCourt, getVenue } from "@/lib/venues";
 
 // /replays/{venueId}/{courtId}: destino do QR fixo do botao da quadra. Publica
 // (o jogador chega pelo telemovel, sem login) e so le replays desta quadra,
@@ -35,7 +38,18 @@ async function CourtReplays({
   if (!court) notFound();
 
   await connection(); // depende da hora atual (janela de expiracao): sempre dinamico
-  const replays = await listRecentReplays(venueId, courtId);
+  const [replays, venue] = await Promise.all([
+    listRecentReplays(venueId, courtId),
+    getVenue(venueId),
+  ]);
+  const moments = groupMoments(replays);
+
+  // Cobranca: quais replays este dispositivo ja comprou (cookie de acesso).
+  const payment = venue?.requireDownloadPayment
+    ? { venueId, courtId, replayCount: replays.length }
+    : undefined;
+  const purchases = payment ? await getMyPurchases() : [];
+  const unlockedIds = replays.filter((r) => purchases.some((p) => purchaseCovers(p, r))).map((r) => r.id);
 
   return (
     <>
@@ -43,6 +57,7 @@ async function CourtReplays({
         event="replays_page_open"
         properties={{ venueId, courtId, sport: court.sport, replays: replays.length }}
       />
+      <CheckoutBanner />
       <h1 className="mt-6 text-3xl font-extrabold">Replays</h1>
       <ul className="mt-3 flex flex-wrap gap-2">
         {[court.sport, court.name].map((label, i) => (
@@ -65,9 +80,13 @@ async function CourtReplays({
         </p>
       ) : (
         <ul className="mt-8 grid gap-6 sm:grid-cols-2">
-          {groupMoments(replays).map((moment) => (
+          {moments.map((moment) => (
             <li key={moment.id}>
-              <MomentCard {...momentCardProps(moment)} />
+              <MomentCard
+                {...momentCardProps(moment)}
+                payment={payment}
+                unlockedIds={unlockedIds}
+              />
             </li>
           ))}
         </ul>

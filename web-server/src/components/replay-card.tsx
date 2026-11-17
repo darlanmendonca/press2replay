@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { track } from "@vercel/analytics";
+import { DownloadModal, type PaymentInfo } from "./download-modal";
 
 const PLAY_INTERVAL_MS = 450;
 
@@ -19,12 +20,20 @@ export function ReplayCard({
   createdAt,
   durationSeconds,
   sprite,
+  payment,
+  purchased,
 }: {
   id: string;
   createdAt: string;
   durationSeconds: number | null;
   sprite: Sprite | null;
+  // Place com cobranca e replay ainda nao comprado: "Baixar" abre o modal em
+  // vez de baixar direto.
+  payment?: PaymentInfo;
+  // Ja comprado neste dispositivo (baixa direto, com um selo).
+  purchased?: boolean;
 }) {
+  const [modalOpen, setModalOpen] = useState(false);
   // Hora no fuso do visitante: vazia no servidor (que nao o conhece), preenchida
   // no cliente sem divergir na hidratacao.
   const time = useSyncExternalStore(
@@ -46,16 +55,38 @@ export function ReplayCard({
         <div className="text-sm">
           <p className="font-bold">{time || " "}</p>
           {durationSeconds ? <p className="text-muted">{durationSeconds}s</p> : null}
+          {purchased ? <p className="text-xs font-bold text-brand">✓ Comprado</p> : null}
         </div>
-        <a
-          href={`/api/replays/${id}/video`}
-          download
-          onClick={() => track("replay_download", { replayId: id })}
-          className="rounded-full bg-brand px-4 py-2 text-sm font-bold text-bg transition-opacity hover:opacity-90"
-        >
-          Baixar
-        </a>
+        {payment ? (
+          <button
+            type="button"
+            onClick={() => {
+              track("replay_download_click", { replayId: id });
+              setModalOpen(true);
+            }}
+            className="rounded-full bg-brand px-4 py-2 text-sm font-bold text-bg transition-opacity hover:opacity-90"
+          >
+            Baixar
+          </button>
+        ) : (
+          <a
+            href={`/api/replays/${id}/video`}
+            download
+            onClick={() => track("replay_download", { replayId: id })}
+            className="rounded-full bg-brand px-4 py-2 text-sm font-bold text-bg transition-opacity hover:opacity-90"
+          >
+            Baixar
+          </a>
+        )}
       </div>
+      {payment && (
+        <DownloadModal
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+          replayId={id}
+          payment={payment}
+        />
+      )}
     </article>
   );
 }

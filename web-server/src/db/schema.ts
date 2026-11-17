@@ -118,6 +118,10 @@ export const venue = pgTable("venue", {
   name: text("name").notNull(),
   edgeKeyHash: text("edge_key_hash").unique(),
   edgeKeyCreatedAt: timestamp("edge_key_created_at", { withTimezone: true }),
+  // Opt-in de pagamento: false (padrao) = download gratis (o local paga a
+  // Press2Replay, ou e piloto); true = o atleta paga pra baixar (por replay ou
+  // pacote), via Stripe Checkout. Ver src/lib/pricing.ts.
+  requireDownloadPayment: boolean("require_download_payment").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
@@ -210,3 +214,33 @@ export const contactRequest = pgTable(
     index("contact_request_ip_hash_idx").on(table.ipHash, table.createdAt),
   ],
 );
+
+// Compras de download (places com `venue.requireDownloadPayment`). Checkout de
+// convidado: sem conta, a identidade e o e-mail que o Stripe coleta. `plan`:
+// "single" (um replay: `replayId`) ou "pack" (todos os replays da quadra
+// existentes no pagamento + os criados ate o fim do TTL seguinte). Sem FK pro
+// replay (efemero) nem pra quadra. `status` "pending" -> "paid" (webhook do
+// Stripe ou a consulta de /api/checkout/status). Valor em centimos; o preco
+// vem sempre do servidor (src/lib/pricing.ts). `consentAt`: o atleta aceitou o
+// acesso imediato e a perda do direito de arrependimento (conteudo digital).
+export const purchase = pgTable(
+  "purchase",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    stripeSessionId: text("stripe_session_id").notNull().unique(),
+    plan: text("plan").notNull(), // "single" | "pack"
+    venueId: text("venue_id").notNull(),
+    courtId: text("court_id").notNull(),
+    replayId: uuid("replay_id"),
+    amountCents: integer("amount_cents").notNull(),
+    currency: text("currency").notNull(),
+    email: text("email"),
+    status: text("status").notNull().default("pending"), // "pending" | "paid"
+    consentAt: timestamp("consent_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+  },
+  (table) => [index("purchase_email_idx").on(table.email)],
+);
+
+export type Purchase = typeof purchase.$inferSelect;

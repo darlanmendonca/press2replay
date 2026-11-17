@@ -1,6 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { getMyPurchases } from "@/lib/access";
+import { purchaseCovers } from "@/lib/purchases";
 import { getActiveReplay } from "@/lib/replays";
 import { openObject } from "@/lib/storage";
+import { getVenue } from "@/lib/venues";
 
 // O video e transmitido por esta funcao do inicio ao fim do download; no Hobby
 // (Fluid compute) 300s e o maximo. Um clipe de ~35MB so estoura abaixo de ~1 Mbit/s.
@@ -12,7 +15,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 // replay. O storage e privado: o unico caminho ate o arquivo e esta rota, que
 // checa a expiracao a cada request - o link do replay morre no `expiresAt`
 // mesmo que o cron diario ainda nao tenha apagado o objeto.
-//   /api/replays/{id}/video  -> mp4 como download (attachment)
+//   /api/replays/{id}/video  -> mp4 como download (attachment); 402 sem compra em place pago
 //   /api/replays/{id}/sprite -> spritesheet jpg (preview)
 export async function GET(_request: NextRequest, ctx: RouteContext<"/api/replays/[id]/[asset]">) {
   const { id, asset } = await ctx.params;
@@ -23,6 +26,18 @@ export async function GET(_request: NextRequest, ctx: RouteContext<"/api/replays
   const row = await getActiveReplay(id);
   const pathname = asset === "video" ? row?.videoPath : row?.spritePath;
   if (!row || !pathname) return new NextResponse("Not found", { status: 404 });
+
+  // Place com cobranca: o video so sai com compra paga que o cubra (o sprite,
+  // o preview, continua livre).
+  if (asset === "video") {
+    const venue = await getVenue(row.venueId);
+    if (venue?.requireDownloadPayment) {
+      const purchases = await getMyPurchases();
+      if (!purchases.some((p) => purchaseCovers(p, row))) {
+        return new NextResponse("Payment required", { status: 402 });
+      }
+    }
+  }
 
   const object = await openObject(pathname);
   if (!object) return new NextResponse("Not found", { status: 404 });

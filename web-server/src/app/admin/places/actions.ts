@@ -62,6 +62,25 @@ export async function updateVenueAction(
   return { saved: true };
 }
 
+// Opt-in de pagamento do place: liga/desliga a cobranca de download aos atletas.
+export async function setRequireDownloadPaymentAction(
+  venueId: string,
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  await requireAdmin();
+  const requireDownloadPayment = formData.get("requireDownloadPayment") === "on";
+  const updated = await db
+    .update(venue)
+    .set({ requireDownloadPayment })
+    .where(eq(venue.id, venueId))
+    .returning({ id: venue.id });
+  if (updated.length === 0) return { error: "Place não encontrado." };
+  revalidatePath(`/admin/places/${venueId}`);
+  revalidatePath(`/replays/${venueId}`, "layout");
+  return { saved: true };
+}
+
 export async function createCourtAction(
   venueId: string,
   _prev: FormState,

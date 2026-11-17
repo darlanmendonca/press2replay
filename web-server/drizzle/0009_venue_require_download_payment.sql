@@ -1,0 +1,1 @@
+ALTER TABLE "venue" ADD COLUMN "require_download_payment" boolean DEFAULT false NOT NULL;

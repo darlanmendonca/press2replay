@@ -6,6 +6,7 @@ import { inputClass, primaryButtonClass, secondaryButtonClass } from "../../styl
 import {
   createCourtAction,
   rotateEdgeKeyAction,
+  setRequireDownloadPaymentAction,
   updateCourtAction,
   updateVenueAction,
   type FormState,
@@ -61,6 +62,44 @@ export function EditVenueForm({ venueId, name }: { venueId: string; name: string
         {pending ? "A guardar…" : "Guardar nome"}
       </button>
       <Feedback state={state} />
+    </form>
+  );
+}
+
+export function PaymentsForm({
+  venueId,
+  requireDownloadPayment,
+}: {
+  venueId: string;
+  requireDownloadPayment: boolean;
+}) {
+  const [state, formAction, pending] = useActionState(
+    setRequireDownloadPaymentAction.bind(null, venueId),
+    initialState,
+  );
+  return (
+    <form action={formAction} className="flex flex-col gap-3">
+      <label className="flex items-start gap-3 text-sm">
+        <input
+          type="checkbox"
+          name="requireDownloadPayment"
+          defaultChecked={requireDownloadPayment}
+          className="mt-0.5 size-4 accent-brand"
+        />
+        <span>
+          Cobrar o download aos atletas
+          <span className="block text-muted">
+            Desligado: download grátis (o place paga à Press2Replay). Ligado: o atleta paga por
+            replay ou pelo pacote.
+          </span>
+        </span>
+      </label>
+      <div className="flex items-center gap-3">
+        <button type="submit" disabled={pending} className={secondaryButtonClass}>
+          {pending ? "A guardar…" : "Guardar"}
+        </button>
+        <Feedback state={state} />
+      </div>
     </form>
   );
 }

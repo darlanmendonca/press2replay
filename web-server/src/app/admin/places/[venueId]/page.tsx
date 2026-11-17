@@ -9,7 +9,7 @@ import { requireAdmin } from "@/lib/session";
 import { ID_PATTERN } from "@/lib/storage";
 import { getVenue, listCourts, listVenueReplays } from "@/lib/venues";
 import { cardClass } from "../../styles";
-import { CourtRow, EdgeKeyPanel, EditVenueForm, NewCourtForm } from "./forms";
+import { CourtRow, EdgeKeyPanel, EditVenueForm, NewCourtForm, PaymentsForm } from "./forms";
 
 export default function VenuePage({ params }: PageProps<"/admin/places/[venueId]">) {
   return (
@@ -57,6 +57,11 @@ async function VenueContent({ params }: Pick<PageProps<"/admin/places/[venueId]"
         <p className="mt-3 text-xs text-muted">
           O id do place não pode ser alterado: está nos QRs impressos das quadras.
         </p>
+      </section>
+
+      <section className={`${cardClass} mt-6`}>
+        <h2 className="mb-4 text-xl font-extrabold">Pagamentos</h2>
+        <PaymentsForm venueId={venue.id} requireDownloadPayment={venue.requireDownloadPayment} />
       </section>
 
       <section className={`${cardClass} mt-6`}>

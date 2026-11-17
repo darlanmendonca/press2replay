@@ -64,6 +64,20 @@
       "when": 1793653430430,
       "tag": "0008_contact_request_contact_kind",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794417655469,
+      "tag": "0009_venue_require_download_payment",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794418754115,
+      "tag": "0010_purchase",
+      "breakpoints": true
     }
   ]
 }
