@@ -3,6 +3,7 @@
 // abrir /replays/demo/1 sem precisar do edge. Sobe os arquivos pro Blob do
 // .env.local e e re-executavel (substitui os replays seed anteriores).
 //   npm run db:seed
+// Contra outro ambiente (ex.: preview): ENV_FILE=.env.preview npm run db:seed
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdtempSync, readFileSync, statSync } from "node:fs";
@@ -14,7 +15,7 @@ import { db } from "../src/db";
 import { court, replay, venue } from "../src/db/schema";
 
 try {
-  process.loadEnvFile(".env.local");
+  process.loadEnvFile(process.env.ENV_FILE ?? ".env.local");
 } catch {}
 
 const VENUE = "demo";

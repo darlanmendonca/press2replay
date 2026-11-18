@@ -67,11 +67,21 @@ export function DownloadModal({
   const busy = loading !== null;
   const disabled = !consent || busy;
 
+  // Fecha o <dialog> direto (nao so via estado do pai + effect): o ✕ e o clique
+  // no backdrop nao dependem de o React re-renderizar pra funcionar. O evento
+  // `close` do dialog avisa o pai; o onClose() explicito cobre o caso do
+  // dialog ja estar fechado mas o estado do pai ainda "aberto".
+  function dismiss() {
+    if (busy) return;
+    ref.current?.close();
+    onClose();
+  }
+
   return (
     <dialog
       ref={ref}
       onClose={onClose}
-      onClick={(e) => e.target === ref.current && !busy && onClose()}
+      onClick={(e) => e.target === ref.current && dismiss()}
       aria-labelledby="download-modal-title"
       className="m-auto w-[min(92vw,26rem)] rounded-2xl border border-border bg-surface p-0 text-fg backdrop:bg-black/70"
     >
@@ -82,7 +92,7 @@ export function DownloadModal({
           </h2>
           <button
             type="button"
-            onClick={onClose}
+            onClick={dismiss}
             disabled={busy}
             aria-label="Fechar"
             className="-m-2 p-2 text-muted transition-colors hover:text-fg disabled:opacity-50"
